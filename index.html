@@ -115,6 +115,55 @@ function signPct(cur, prev){
   return { t:(d>=0?'+':'−')+Math.abs(d).toFixed(1).replace('.',',')+'%', up:d>=0 };
 }
 
+// ---------- environment detection ----------
+// window.cowork exists ONLY inside Claude / Cowork. Hosted elsewhere (GitHub
+// Pages, navigateur, serveur perso), it is absent -> we fall back to demo data
+// instead of crashing. For real live data outside Cowork, point API_BASE at a
+// backend proxy that holds your Shopify token (see /api note in the repo).
+const HAS_COWORK = (typeof window !== 'undefined') && window.cowork && typeof window.cowork.callMcpTool === 'function';
+const API_BASE = ''; // e.g. 'https://ton-projet.vercel.app' once a backend proxy is deployed
+
+// ---------- demo dataset (real U GLAM 30j snapshot, baked in) ----------
+function demoData(){
+  const start = new Date('2026-06-22T00:00:00Z');
+  const salesNZ = {'2026-06-27':49.85,'2026-06-29':39.88,'2026-07-05':49.85,'2026-07-07':29.85,'2026-07-14':24.9,'2026-07-16':34.85,'2026-07-21':65.65};
+  const netNZ = {'2026-07-21':62.75};
+  const sessArr = [18,14,12,11,17,21,13,10,12,31,16,19,9,13,33,13,15,31,16,56,18,35,11,28,19,16,34,42,18,27,23];
+  const compNZ = {'2026-06-27':1,'2026-06-29':1,'2026-07-05':1,'2026-07-07':1,'2026-07-14':1,'2026-07-16':1,'2026-07-21':1};
+  const tsA = [], sessTsA = [];
+  for(let i=0;i<31;i++){
+    const d = new Date(start); d.setUTCDate(d.getUTCDate()+i); const iso = d.toISOString().slice(0,10);
+    const t = salesNZ[iso]||0;
+    tsA.push({ day: iso, total: t, net: (netNZ[iso]!=null?netNZ[iso]:t) });
+    sessTsA.push({ day: iso, sessions: sessArr[i]||0, completed: compNZ[iso]||0, conv: (compNZ[iso]?(compNZ[iso]/(sessArr[i]||1)*100):0) });
+  }
+  return {
+    S: { orders:9, gross:502.62, discounts:190.77, returns:19.92, net:291.93, shipping:2.9, taxes:0, total:294.83, aov:34.65 },
+    P: { orders:7, gross:430, net:250, total:255, aov:36.4 },
+    SS: { sessions:651, reachedCheckout:9, completed:7, conv: 7/651*100 },
+    shop: { name:'U GLAM (démo)' },
+    ts: tsA, sessTs: sessTsA,
+    products: [
+      { title:'Cils magnétiques réutilisables | Pose sans colle', gross:494233.56, net:459422.21, orders:15090 },
+      { title:'UGLAM | LashGLAM Kit 5 en 1', gross:27069.64, net:9274.47, orders:203 },
+      { title:'LashesGLAM | Sérum de croissance', gross:20670.06, net:4943.43, orders:713 },
+      { title:'Nettoyant Faux Cils', gross:7490.18, net:6424.44, orders:361 },
+      { title:'UGLAM | MyGLAM Kit', gross:2877.63, net:1070, orders:38 },
+      { title:'GLAMLASH | Mascara booster de cils', gross:2577.71, net:1850.49, orders:89 }
+    ],
+    orders: [
+      { name:'#16474', customerName:'TAMARA RUTHERFORD', createdAt:'2026-07-21T19:31:39Z', totalPrice:'12.9', financialStatus:'PAID', fulfillmentStatus:'UNFULFILLED', lineItemCount:1 },
+      { name:'#16473', customerName:'TAMARA RUTHERFORD', createdAt:'2026-07-21T19:26:57Z', totalPrice:'52.75', financialStatus:'PAID', fulfillmentStatus:'UNFULFILLED', lineItemCount:3 },
+      { name:'#16472', customerName:'Dalila', createdAt:'2026-07-17T06:43:26Z', totalPrice:'19.92', financialStatus:'REFUNDED', fulfillmentStatus:'UNFULFILLED', lineItemCount:1 },
+      { name:'#16471', customerName:'Maéva BAYA', createdAt:'2026-07-16T10:42:26Z', totalPrice:'34.85', financialStatus:'PAID', fulfillmentStatus:'FULFILLED', lineItemCount:1 },
+      { name:'#16470', customerName:'Mounia El jarroudi', createdAt:'2026-07-14T12:56:07Z', totalPrice:'24.9', financialStatus:'PAID', fulfillmentStatus:'FULFILLED', lineItemCount:1 },
+      { name:'#16469', customerName:'Sarah Dupre', createdAt:'2026-07-07T13:21:15Z', totalPrice:'29.85', financialStatus:'PAID', fulfillmentStatus:'FULFILLED', lineItemCount:1 },
+      { name:'#16468', customerName:'Rosa', createdAt:'2026-07-05T14:11:48Z', totalPrice:'49.85', financialStatus:'PAID', fulfillmentStatus:'FULFILLED', lineItemCount:3 },
+      { name:'#16467', customerName:'Alice', createdAt:'2026-06-29T13:36:42Z', totalPrice:'39.88', financialStatus:'PAID', fulfillmentStatus:'FULFILLED', lineItemCount:3 }
+    ]
+  };
+}
+
 // ---------- MCP plumbing ----------
 async function mcp(tool, args){
   const r = await window.cowork.callMcpTool(SHOP+'__'+tool, args||{});
@@ -133,6 +182,13 @@ function granularity(days){ if(days<=31) return 'day'; if(days<=120) return 'wee
 async function fetchAll(){
   STATE.loading = true; STATE.error = null; renderChrome(); renderView();
   const N = STATE.period, gran = granularity(N);
+  // Outside Cowork (no bridge) and no backend configured -> demo mode.
+  if(!HAS_COWORK && !API_BASE){
+    STATE.demo = true;
+    setTimeout(() => { STATE.D = demoData(); STATE.loading = false; renderChrome(); renderView(); }, 250);
+    return;
+  }
+  STATE.demo = false;
   try {
     const summaryQ = `FROM sales SHOW orders, gross_sales, discounts, returns, net_sales, shipping_charges, taxes, total_sales, average_order_value SINCE -${N}d UNTIL today`;
     const prevQ = `FROM sales SHOW orders, gross_sales, net_sales, total_sales, average_order_value SINCE -${2*N}d UNTIL -${N}d`;
@@ -606,6 +662,9 @@ function renderView(){
   if(STATE.loading){ c.innerHTML = loadingBlock(); return; }
   if(STATE.error){ c.innerHTML = errorBlock(); const r=document.getElementById('retry'); if(r) r.onclick=fetchAll; return; }
   let html='';
+  const banner = STATE.demo ? `<div style="padding:12px 16px;border-radius:14px;background:rgba(251,191,36,0.10);border:1px solid rgba(251,191,36,0.3);color:#fbbf24;font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:10px;">
+      <span style="width:8px;height:8px;border-radius:50%;background:#fbbf24;box-shadow:0 0 8px #fbbf24;"></span>
+      Mode démo — page ouverte hors Cowork. Données d'exemple U GLAM (30j). Pour du live hors Cowork, un backend Shopify est requis (voir README).</div>` : '';
   switch(STATE.nav){
     case 'overview':
       html = `<div class="vf-view">${kpiRow()}
@@ -634,7 +693,7 @@ function renderView(){
       html = `<div class="vf-view"><div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;">${sessionsCard()}${adsCard()}</div></div>`;
       break;
   }
-  c.innerHTML = html;
+  c.innerHTML = banner + html;
   // post-render hooks
   if(document.getElementById('revChart')) drawRevChart();
   if(document.getElementById('sessChart')) drawSessChart();
