@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VaultFX — Finance OS</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #09060f; }
+  ::-webkit-scrollbar { width: 9px; height: 9px; }
+  ::-webkit-scrollbar-thumb { background: rgba(167,139,250,0.25); border-radius: 20px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  @keyframes tickerScroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  @keyframes floatGlow { 0%,100% { opacity: .5; } 50% { opacity: .9; } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  a { color: #b794ff; text-decoration: none; }
+  a:hover { color: #d8b4fe; }
+  button { font-family: inherit; }
+  .vf-mono { font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace; }
+  .vf-card { padding: 20px 22px; border-radius: 20px; background: rgba(28,20,48,0.42); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(167,139,250,0.16); box-shadow: 0 22px 60px -24px rgba(124,58,237,0.5), inset 0 1px 0 rgba(255,255,255,0.06); }
+  .vf-view { animation: fadeIn .25s ease; }
+  .vf-navbtn:hover { background: rgba(167,139,250,0.10) !important; }
+  .vf-spin { width: 16px; height: 16px; border: 2px solid rgba(167,139,250,0.25); border-top-color: #b794ff; border-radius: 50%; animation: spin .7s linear infinite; display: inline-block; }
+  input.vf-inp { width: 100%; padding: 9px 11px; border-radius: 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(167,139,250,0.18); color: #ece7f7; font-size: 13px; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+  input.vf-inp:focus { outline: none; border-color: #b794ff; }
+  .vf-th { font-size: 11px; font-weight: 700; color: #7a6f95; letter-spacing: 0.03em; text-transform: uppercase; }
+</style>
+</head>
+<body>
+<div id="app" style="min-height:100vh;width:100%;font-family:'Manrope',system-ui,-apple-system,sans-serif;color:#ece7f7;background:radial-gradient(1100px 620px at 12% -12%, rgba(124,58,237,0.30), transparent 60%),radial-gradient(1000px 520px at 104% -4%, rgba(190,80,200,0.20), transparent 55%),radial-gradient(900px 700px at 50% 120%, rgba(80,50,180,0.16), transparent 60%),#09060f;display:grid;grid-template-columns:248px 1fr;letter-spacing:-0.01em;">
+
+  <!-- SIDEBAR -->
+  <aside style="border-right:1px solid rgba(167,139,250,0.14);padding:22px 16px;display:flex;flex-direction:column;gap:22px;position:sticky;top:0;height:100vh;">
+    <div style="display:flex;align-items:center;gap:11px;padding:4px 8px;">
+      <div style="width:34px;height:34px;border-radius:10px;background:linear-gradient(145deg,#b794ff,#7c3aed);box-shadow:0 6px 22px -6px #7c3aed;display:grid;place-items:center;font-weight:800;font-size:17px;color:#0a0710;">V</div>
+      <div>
+        <div style="font-weight:800;font-size:16px;line-height:1;">Vault<span style="color:#b794ff;">FX</span></div>
+        <div style="font-size:10.5px;color:#8b7fa8;font-weight:600;letter-spacing:0.04em;margin-top:3px;">FINANCE OS</div>
+      </div>
+    </div>
+    <nav id="nav" style="display:flex;flex-direction:column;gap:3px;"></nav>
+    <div style="margin-top:auto;display:flex;flex-direction:column;gap:9px;">
+      <div style="font-size:10.5px;color:#6f6588;font-weight:700;letter-spacing:0.08em;padding:0 8px;">SOURCES CONNECTÉES</div>
+      <div id="sources" style="display:flex;flex-direction:column;gap:6px;"></div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main style="min-width:0;display:flex;flex-direction:column;">
+    <!-- TOPBAR -->
+    <header style="display:flex;align-items:center;gap:16px;padding:16px 26px;border-bottom:1px solid rgba(167,139,250,0.12);position:sticky;top:0;z-index:20;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);background:rgba(10,7,17,0.65);">
+      <div>
+        <div id="viewTitle" style="font-size:19px;font-weight:800;">Vue d'ensemble</div>
+        <div id="viewSub" style="font-size:12px;color:#8b7fa8;font-weight:500;margin-top:2px;">Chargement…</div>
+      </div>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:10px;">
+        <div id="periodSel" style="display:flex;padding:3px;border-radius:11px;background:rgba(255,255,255,0.04);border:1px solid rgba(167,139,250,0.12);"></div>
+        <div id="currSel" style="display:flex;padding:3px;border-radius:11px;background:rgba(255,255,255,0.04);border:1px solid rgba(167,139,250,0.12);"></div>
+        <button id="reloadBtn" title="Rafraîchir" style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:11px;background:rgba(255,255,255,0.04);border:1px solid rgba(167,139,250,0.12);font-size:12.5px;font-weight:600;color:#cfc6e6;cursor:pointer;">
+          <span id="liveDot" style="width:6px;height:6px;border-radius:50%;background:#34d399;box-shadow:0 0 7px #34d399;animation:floatGlow 2s infinite;"></span>
+          <span id="liveTxt">Temps réel</span>
+        </button>
+        <div style="width:38px;height:38px;border-radius:11px;background:linear-gradient(145deg,rgba(167,139,250,0.2),rgba(255,255,255,0.03));border:1px solid rgba(167,139,250,0.16);display:grid;place-items:center;font-weight:700;font-size:13px;color:#d8b4fe;">UG</div>
+      </div>
+    </header>
+
+    <!-- TICKER -->
+    <div style="overflow:hidden;border-bottom:1px solid rgba(167,139,250,0.1);background:rgba(255,255,255,0.015);">
+      <div id="ticker" style="display:flex;gap:34px;white-space:nowrap;padding:9px 0;width:max-content;animation:tickerScroll 40s linear infinite;"></div>
+    </div>
+
+    <!-- CONTENT -->
+    <div id="content" style="padding:22px 26px 46px;display:flex;flex-direction:column;gap:20px;min-height:60vh;"></div>
+  </main>
+</div>
+
+<script>
+"use strict";
+const SHOP = "mcp__75d0e088-f5e9-4a7b-bdf8-b52dc05e1f06";
+const green = '#34d399', red = '#fb7185', amber = '#fbbf24', teal = '#5eead4', accent = '#b794ff', accent2 = '#7c3aed';
+
+// ---------- persisted settings ----------
+const DEF_SETTINGS = { cogsPct: 40, adMonthly: 0, opexMonthly: 0, meta: 0, google: 0, tiktok: 0 };
+function loadSettings(){ try { return Object.assign({}, DEF_SETTINGS, JSON.parse(localStorage.getItem('vaultfx_settings')||'{}')); } catch(e){ return {...DEF_SETTINGS}; } }
+function saveSettings(s){ try { localStorage.setItem('vaultfx_settings', JSON.stringify(s)); } catch(e){} }
+
+const STATE = {
+  period: (function(){ try { return parseInt(localStorage.getItem('vaultfx_period'))||30; } catch(e){ return 30; } })(),
+  currency: (function(){ try { return localStorage.getItem('vaultfx_currency')||'EUR'; } catch(e){ return 'EUR'; } })(),
+  nav: 'overview',
+  settings: loadSettings(),
+  loading: true,
+  error: null,
+  D: null
+};
+const RATES = { EUR: 1, USD: 1.08, GBP: 0.85 };
+const SYM = { EUR: '€', USD: '$', GBP: '£' };
+function rate(){ return RATES[STATE.currency]; }
+function sym(){ return SYM[STATE.currency]; }
+function fmt(n, compact){
+  const v = Math.abs(Number(n)||0) * rate();
+  const s = compact
+    ? new Intl.NumberFormat('fr-FR',{notation:'compact',maximumFractionDigits:1}).format(v)
+    : new Intl.NumberFormat('fr-FR',{maximumFractionDigits:0}).format(v);
+  return ((Number(n)||0) < 0 ? '−' : '') + sym() + s;
+}
+function fmt2(n){ const v=(Number(n)||0)*rate(); return sym()+new Intl.NumberFormat('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2}).format(v); }
+function pct(n,d){ if(!d) return '—'; return (n/d*100).toFixed(1).replace('.',',')+'%'; }
+function signPct(cur, prev){
+  if(prev===0||prev==null){ return cur>0 ? {t:'+∞', up:true} : {t:'—', up:true}; }
+  const d = (cur-prev)/Math.abs(prev)*100;
+  return { t:(d>=0?'+':'−')+Math.abs(d).toFixed(1).replace('.',',')+'%', up:d>=0 };
+}
+
+// ---------- MCP plumbing ----------
+async function mcp(tool, args){
+  const r = await window.cowork.callMcpTool(SHOP+'__'+tool, args||{});
+  if(r && r.isError){ throw new Error('MCP error: '+tool); }
+  let raw = r && r.structuredContent;
+  if(!raw && r && r.content && r.content[0] && r.content[0].text){ raw = JSON.parse(r.content[0].text); }
+  return raw;
+}
+function ql(query){ return mcp('run-analytics-query', { query }); }
+function rows(res){ return (res && res.rows) ? res.rows : []; }
+function num(x){ const n = parseFloat(x); return isNaN(n)?0:n; }
+
+function granularity(days){ if(days<=31) return 'day'; if(days<=120) return 'week'; return 'month'; }
+
+// ---------- data fetch ----------
+async function fetchAll(){
+  STATE.loading = true; STATE.error = null; renderChrome(); renderView();
+  const N = STATE.period, gran = granularity(N);
+  try {
+    const summaryQ = `FROM sales SHOW orders, gross_sales, discounts, returns, net_sales, shipping_charges, taxes, total_sales, average_order_value SINCE -${N}d UNTIL today`;
+    const prevQ = `FROM sales SHOW orders, gross_sales, net_sales, total_sales, average_order_value SINCE -${2*N}d UNTIL -${N}d`;
+    const tsQ = `FROM sales SHOW total_sales, net_sales TIMESERIES ${gran} SINCE -${N}d UNTIL today`;
+    const prodQ = `FROM sales SHOW gross_sales, net_sales, orders GROUP BY product_title ORDER BY gross_sales DESC LIMIT 8 SINCE -${N}d UNTIL today`;
+    const sessTsQ = `FROM sessions SHOW sessions, sessions_that_completed_checkout, conversion_rate TIMESERIES ${gran} SINCE -${N}d UNTIL today`;
+    const sessSumQ = `FROM sessions SHOW sessions, sessions_that_reached_checkout, sessions_that_completed_checkout, conversion_rate SINCE -${N}d UNTIL today`;
+
+    const [summary, prev, ts, prod, sessTs, sessSum, orders, shop] = await Promise.all([
+      ql(summaryQ), ql(prevQ), ql(tsQ), ql(prodQ), ql(sessTsQ), ql(sessSumQ),
+      mcp('list-orders', { first: 8 }),
+      mcp('get-shop-info', {})
+    ]);
+
+    const sr = rows(summary)[0] || [];
+    const S = {
+      orders: num(sr[0]), gross: num(sr[1]), discounts: Math.abs(num(sr[2])), returns: Math.abs(num(sr[3])),
+      net: num(sr[4]), shipping: num(sr[5]), taxes: num(sr[6]), total: num(sr[7]), aov: num(sr[8])
+    };
+    const pr = rows(prev)[0] || [];
+    const P = { orders: num(pr[0]), gross: num(pr[1]), net: num(pr[2]), total: num(pr[3]), aov: num(pr[4]) };
+    const ssr = rows(sessSum)[0] || [];
+    const SS = { sessions: num(ssr[0]), reachedCheckout: num(ssr[1]), completed: num(ssr[2]), conv: num(ssr[3])*100 };
+
+    STATE.D = {
+      S, P, SS, shop,
+      ts: rows(ts).map(r => ({ day: r[0], total: num(r[1]), net: num(r[2]) })),
+      sessTs: rows(sessTs).map(r => ({ day: r[0], sessions: num(r[1]), completed: num(r[2]), conv: num(r[3])*100 })),
+      products: rows(prod).map(r => ({ title: r[0] || '(sans titre)', gross: num(r[1]), net: num(r[2]), orders: num(r[3]) })),
+      orders: (orders && orders.orders) ? orders.orders : []
+    };
+    STATE.loading = false;
+  } catch(e){
+    STATE.loading = false; STATE.error = (e && e.message) || String(e);
+  }
+  renderChrome(); renderView();
+}
+
+// ---------- finance engine (real Shopify + manual assumptions) ----------
+function finance(){
+  const D = STATE.D; if(!D) return null;
+  const S = D.S, st = STATE.settings, N = STATE.period;
+  const factor = N/30; // monthly manual figures scaled to selected window
+  const adSpend = (num(st.adMonthly)) * factor;
+  const opex = (num(st.opexMonthly)) * factor;
+  const cogs = S.net * (num(st.cogsPct)/100);
+  const netProfit = S.net - cogs - adSpend - opex;
+  const margin = S.net ? netProfit / S.net : 0;
+  const blendedRoas = adSpend ? S.total / adSpend : 0;
+  const mer = blendedRoas; // marketing efficiency ratio
+  const cac = (adSpend && S.orders) ? adSpend / S.orders : 0;
+  const platforms = [
+    { name: 'Meta Ads', spend: num(st.meta)*factor, color: accent },
+    { name: 'Google Ads', spend: num(st.google)*factor, color: teal },
+    { name: 'TikTok Ads', spend: num(st.tiktok)*factor, color: amber }
+  ];
+  const platSpend = platforms.reduce((a,p)=>a+p.spend,0);
+  return { adSpend, opex, cogs, netProfit, margin, blendedRoas, mer, cac, platforms, platSpend, factor };
+}
+
+// ---------- rendering: chrome (nav, ticker, selectors) ----------
+const NAV = [
+  { key:'overview', label:"Vue d'ensemble" },
+  { key:'pnl', label:'Profit & Pertes' },
+  { key:'ads', label:'Coûts pub' },
+  { key:'cash', label:'Trésorerie' },
+  { key:'orders', label:'Commandes' },
+  { key:'products', label:'Produits' },
+  { key:'sessions', label:'Trafic & conversion' }
+];
+const TITLES = {
+  overview:"Vue d'ensemble", pnl:'Profit & Pertes', ads:'Coûts publicitaires',
+  cash:'Trésorerie', orders:'Commandes', products:'Produits', sessions:'Trafic & conversion'
+};
+
+function renderChrome(){
+  // nav
+  const nav = document.getElementById('nav');
+  nav.innerHTML = NAV.map(n => {
+    const on = STATE.nav===n.key;
+    let badge = '';
+    if(STATE.D){ if(n.key==='orders') badge = STATE.D.S.orders; if(n.key==='ads' && STATE.settings.adMonthly>0) badge='€'; if(n.key==='products') badge = STATE.D.products.length; }
+    return `<a href="#" class="vf-navbtn" data-nav="${n.key}" style="display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:11px;font-size:13.5px;font-weight:600;color:${on?'#ece7f7':'#9a8fb5'};background:${on?'rgba(167,139,250,0.14)':'transparent'};border:1px solid ${on?'rgba(167,139,250,0.2)':'transparent'};transition:all .16s;">
+      <span style="width:7px;height:7px;border-radius:3px;background:${on?accent:'#4a4260'};box-shadow:${on?'0 0 8px '+accent:'none'};"></span>
+      ${n.label}
+      <span class="vf-mono" style="margin-left:auto;font-size:11px;color:#6f6588;">${badge}</span>
+    </a>`;
+  }).join('');
+  nav.querySelectorAll('[data-nav]').forEach(a => a.onclick = e => { e.preventDefault(); STATE.nav = a.dataset.nav; renderChrome(); renderView(); });
+
+  // sources
+  const online = !STATE.error;
+  const src = [
+    { name:'Shopify', status: STATE.loading?'Sync…':(online?'Connecté':'Erreur'), color: online?green:red },
+    { name:'Meta Ads', status: STATE.settings.meta>0?'Manuel':'Non connecté', color: STATE.settings.meta>0?amber:'#6f6588' },
+    { name:'Google Ads', status: STATE.settings.google>0?'Manuel':'Non connecté', color: STATE.settings.google>0?amber:'#6f6588' },
+    { name:'TikTok Ads', status: STATE.settings.tiktok>0?'Manuel':'Non connecté', color: STATE.settings.tiktok>0?amber:'#6f6588' }
+  ];
+  document.getElementById('sources').innerHTML = src.map(s => `
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);">
+      <span style="width:8px;height:8px;border-radius:50%;background:${s.color};box-shadow:0 0 8px ${s.color};"></span>
+      <span style="font-size:12.5px;font-weight:600;color:#cfc6e6;">${s.name}</span>
+      <span style="margin-left:auto;font-size:10.5px;color:#7a6f95;font-weight:600;">${s.status}</span>
+    </div>`).join('');
+
+  // period selector
+  const periods = [{d:7,l:'7j'},{d:30,l:'30j'},{d:90,l:'90j'},{d:365,l:'12M'}];
+  const ps = document.getElementById('periodSel');
+  ps.innerHTML = periods.map(p => {
+    const on = STATE.period===p.d;
+    return `<button data-p="${p.d}" class="vf-mono" style="border:none;cursor:pointer;padding:7px 11px;border-radius:8px;font-size:12.5px;font-weight:600;color:${on?'#0a0710':'#9a8fb5'};background:${on?accent:'transparent'};transition:all .16s;">${p.l}</button>`;
+  }).join('');
+  ps.querySelectorAll('[data-p]').forEach(b => b.onclick = () => { STATE.period = parseInt(b.dataset.p); try{localStorage.setItem('vaultfx_period',STATE.period);}catch(e){} fetchAll(); });
+
+  // currency selector
+  const cs = document.getElementById('currSel');
+  cs.innerHTML = ['EUR','USD','GBP'].map(c => {
+    const on = STATE.currency===c;
+    return `<button data-c="${c}" class="vf-mono" style="border:none;cursor:pointer;padding:7px 11px;border-radius:8px;font-size:12.5px;font-weight:600;color:${on?'#0a0710':'#9a8fb5'};background:${on?accent:'transparent'};transition:all .16s;">${SYM[c]} ${c}</button>`;
+  }).join('');
+  cs.querySelectorAll('[data-c]').forEach(b => b.onclick = () => { STATE.currency = b.dataset.c; try{localStorage.setItem('vaultfx_currency',STATE.currency);}catch(e){} renderChrome(); renderView(); });
+
+  // titles
+  document.getElementById('viewTitle').textContent = TITLES[STATE.nav];
+  const pl = {7:'7 derniers jours',30:'30 derniers jours',90:'90 derniers jours',365:'12 derniers mois'}[STATE.period];
+  document.getElementById('viewSub').textContent = STATE.loading ? 'Synchronisation Shopify…' : STATE.error ? 'Erreur de connexion' : (pl + ' · ' + (STATE.D?STATE.D.shop.name:'') + ' · maj ' + new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}));
+
+  document.getElementById('liveDot').style.background = STATE.loading?amber:STATE.error?red:green;
+  document.getElementById('liveTxt').textContent = STATE.loading?'Sync…':STATE.error?'Hors ligne':'Temps réel';
+
+  // ticker
+  renderTicker();
+}
+
+function renderTicker(){
+  const el = document.getElementById('ticker');
+  if(!STATE.D){ el.innerHTML=''; return; }
+  const D = STATE.D, S = D.S, P = D.P, F = finance();
+  const base = [
+    { label:'CA', value: fmt(S.total,true), ...signPct(S.total,P.total) },
+    { label:'NET SALES', value: fmt(S.net,true), ...signPct(S.net,P.net) },
+    { label:'CMD', value: S.orders, ...signPct(S.orders,P.orders) },
+    { label:'AOV', value: fmt2(S.aov), ...signPct(S.aov,P.aov) },
+    { label:'PROFIT', value: fmt(F.netProfit,true), up: F.netProfit>=0, t:'' },
+    { label:'MARGE', value: (F.margin*100).toFixed(1).replace('.',',')+'%', up: F.margin>=0, t:'' },
+    { label:'ROAS', value: F.blendedRoas?F.blendedRoas.toFixed(2).replace('.',',')+'x':'—', up:true, t:'' },
+    { label:'SESSIONS', value: D.SS.sessions, up:true, t:'' },
+    { label:'CONV', value: D.SS.conv.toFixed(2).replace('.',',')+'%', up:true, t:'' },
+    { label:'REMISES', value: fmt(S.discounts,true), up:false, t:'' }
+  ];
+  const loop = base.concat(base);
+  el.innerHTML = loop.map(t => `<div style="display:inline-flex;align-items:center;gap:8px;font-size:12px;" class="vf-mono">
+    <span style="color:#8b7fa8;font-weight:500;">${t.label}</span>
+    <span style="color:#ece7f7;font-weight:600;">${t.value}</span>
+    ${t.t?`<span style="color:${t.up?green:red};font-weight:600;">${t.up?'▲':'▼'} ${t.t}</span>`:''}
+  </div>`).join('');
+}
+
+// ---------- svg spark ----------
+function sparkPath(series, w, h, area){
+  if(!series.length) series = [0,0];
+  const max = Math.max(...series), min = Math.min(...series);
+  const rng = (max-min)||1;
+  const pts = series.map((v,i)=>[ (i/(series.length-1||1))*w, h-((v-min)/rng)*(h-6)-3 ]);
+  let d = pts.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+  if(area) d += ` L${w},${h} L0,${h} Z`;
+  return d;
+}
+function sparkSVG(series, color){
+  const fill = color===green?'rgba(52,211,153,0.16)':color===red?'rgba(251,113,133,0.16)':'rgba(183,148,255,0.18)';
+  return `<svg viewBox="0 0 90 30" width="90" height="26" preserveAspectRatio="none" style="overflow:visible;">
+    <path d="${sparkPath(series,90,26,true)}" fill="${fill}"></path>
+    <path d="${sparkPath(series,90,26,false)}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+  </svg>`;
+}
+
+// ---------- card builders ----------
+function kpiCard(k){
+  return `<div class="vf-card" style="padding:16px 16px 12px;display:flex;flex-direction:column;gap:10px;position:relative;overflow:hidden;">
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <span style="font-size:11.5px;font-weight:700;color:#9a8fb5;letter-spacing:0.02em;text-transform:uppercase;">${k.label}</span>
+      <span class="vf-mono" style="font-size:11px;font-weight:700;color:${k.up?green:red};background:${k.up?'rgba(52,211,153,0.13)':'rgba(251,113,133,0.13)'};padding:3px 7px;border-radius:7px;">${k.delta}</span>
+    </div>
+    <div class="vf-mono" style="font-size:26px;font-weight:800;letter-spacing:-0.03em;line-height:1;">${k.value}</div>
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:8px;">
+      <span style="font-size:11.5px;color:#8b7fa8;font-weight:600;">${k.sub}</span>
+      ${sparkSVG(k.spark, k.color)}
+    </div>
+  </div>`;
+}
+
+function kpiRow(){
+  const D=STATE.D, S=D.S, P=D.P, F=finance();
+  const tsTotal = D.ts.map(x=>x.total), tsNet = D.ts.map(x=>x.net), tsSess = D.sessTs.map(x=>x.sessions);
+  const dTotal=signPct(S.total,P.total), dOrders=signPct(S.orders,P.orders), dAov=signPct(S.aov,P.aov);
+  const kpis = [
+    { label:"Chiffre d'affaires", value: fmt(S.total,true), sub: S.orders+' commandes', delta:dTotal.t, up:dTotal.up, spark:tsTotal, color:accent },
+    { label:'Profit net', value: fmt(F.netProfit,true), sub:'Marge '+(F.margin*100).toFixed(1).replace('.',',')+'%', delta: F.netProfit>=0?'✓':'⚠', up:F.netProfit>=0, spark:tsNet, color:F.netProfit>=0?green:red },
+    { label:'ROAS blended', value: F.blendedRoas?F.blendedRoas.toFixed(2).replace('.',',')+'x':'—', sub: F.adSpend?'Dépense '+fmt(F.adSpend,true):'Ajouter dépense pub', delta: F.blendedRoas?'MER':'—', up:F.blendedRoas>=2, spark:tsTotal, color:accent },
+    { label:'Panier moyen', value: fmt2(S.aov), sub: F.cac?'CAC '+fmt2(F.cac):'AOV', delta:dAov.t, up:dAov.up, spark:tsNet, color:green },
+    { label:'Commandes', value: S.orders, sub: D.SS.sessions+' sessions', delta:dOrders.t, up:dOrders.up, spark:tsSess, color:accent }
+  ];
+  return `<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;">${kpis.map(kpiCard).join('')}</div>`;
+}
+
+function revenueChartCard(){
+  return `<div class="vf-card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+      <div>
+        <div style="font-size:15px;font-weight:700;">Chiffre d'affaires & net sales</div>
+        <div style="font-size:12px;color:#8b7fa8;font-weight:500;margin-top:2px;">Données Shopify · ${granularity(STATE.period)==='day'?'quotidien':granularity(STATE.period)==='week'?'hebdomadaire':'mensuel'}</div>
+      </div>
+      <div style="display:flex;gap:16px;">
+        <div style="display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:#cfc6e6;"><span style="width:10px;height:10px;border-radius:3px;background:${accent};"></span>CA total</div>
+        <div style="display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:#cfc6e6;"><span style="width:10px;height:10px;border-radius:3px;background:${green};"></span>Net sales</div>
+      </div>
+    </div>
+    <div style="height:250px;position:relative;margin-top:8px;"><canvas id="revChart"></canvas></div>
+  </div>`;
+}
+function drawRevChart(){
+  const c = document.getElementById('revChart'); if(!c||!window.Chart) return;
+  const D = STATE.D;
+  const labels = D.ts.map(x => shortDay(x.day));
+  const g = c.getContext('2d');
+  const grad = g.createLinearGradient(0,0,0,240); grad.addColorStop(0,'rgba(183,148,255,0.42)'); grad.addColorStop(1,'rgba(183,148,255,0)');
+  const grad2 = g.createLinearGradient(0,0,0,240); grad2.addColorStop(0,'rgba(52,211,153,0.28)'); grad2.addColorStop(1,'rgba(52,211,153,0)');
+  if(window._revChart) window._revChart.destroy();
+  window._revChart = new Chart(c, {
+    type:'line',
+    data:{ labels, datasets:[
+      { label:'CA total', data:D.ts.map(x=>x.total*rate()), borderColor:accent, backgroundColor:grad, fill:true, tension:0.35, borderWidth:2.6, pointRadius:0, pointHoverRadius:4 },
+      { label:'Net sales', data:D.ts.map(x=>x.net*rate()), borderColor:green, backgroundColor:grad2, fill:true, tension:0.35, borderWidth:2.2, pointRadius:0, pointHoverRadius:4 }
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+      plugins:{ legend:{display:false}, tooltip:{ backgroundColor:'rgba(20,14,32,0.95)', borderColor:'rgba(167,139,250,0.3)', borderWidth:1, titleColor:'#ece7f7', bodyColor:'#cfc6e6', padding:10, callbacks:{ label:(ctx)=>ctx.dataset.label+': '+sym()+new Intl.NumberFormat('fr-FR',{maximumFractionDigits:0}).format(ctx.parsed.y) } } },
+      scales:{ x:{ grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:'#6f6588',font:{size:10},maxRotation:0,autoSkip:true,maxTicksLimit:8} },
+        y:{ grid:{color:'rgba(255,255,255,0.05)'}, ticks:{color:'#6f6588',font:{size:10},callback:(v)=>sym()+new Intl.NumberFormat('fr-FR',{notation:'compact'}).format(v)} } }
+    }
+  });
+}
+function shortDay(d){ if(!d) return ''; const dt=new Date(d); if(STATE.period>=365) return dt.toLocaleDateString('fr-FR',{month:'short'}); return dt.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}); }
+
+function pnlCard(){
+  const D=STATE.D, S=D.S, F=finance();
+  const rowsP = [
+    { label:"Chiffre d'affaires", val:S.gross, kind:'in' },
+    { label:'Remises', val:-S.discounts, kind:'out' },
+    { label:'Retours', val:-S.returns, kind:'out' },
+    { label:'COGS ('+STATE.settings.cogsPct+'%)', val:-F.cogs, kind:'out' },
+    { label:'Dépenses pub', val:-F.adSpend, kind:'out' },
+    { label:'Taxes', val:-S.taxes, kind:'out' },
+    { label:'Opex', val:-F.opex, kind:'out' }
+  ].filter(r => r.kind==='in' || Math.abs(r.val)>0.001);
+  const maxMag = Math.max(S.gross, 1);
+  const bars = rowsP.map(p => {
+    const w = (Math.abs(p.val)/maxMag*100).toFixed(1)+'%';
+    return `<div style="display:grid;grid-template-columns:130px 1fr 118px;align-items:center;gap:14px;">
+      <span style="font-size:12.5px;font-weight:600;color:${p.kind==='in'?'#ece7f7':'#cfc6e6'};">${p.label}</span>
+      <div style="height:10px;border-radius:6px;background:rgba(255,255,255,0.05);overflow:hidden;"><div style="height:100%;width:${w};border-radius:6px;background:${p.kind==='in'?'linear-gradient(90deg,'+accent+','+accent2+')':'rgba(251,113,133,0.6)'};"></div></div>
+      <span class="vf-mono" style="font-size:13px;font-weight:700;text-align:right;color:${p.kind==='in'?'#d8b4fe':red};">${fmt(p.val,true)}</span>
+    </div>`;
+  }).join('');
+  const npW = (Math.max(F.netProfit,0)/maxMag*100).toFixed(1)+'%';
+  const npBar = `<div style="display:grid;grid-template-columns:130px 1fr 118px;align-items:center;gap:14px;padding-top:11px;margin-top:4px;border-top:1px solid rgba(255,255,255,0.07);">
+      <span style="font-size:12.5px;font-weight:700;color:${F.netProfit>=0?green:red};">Profit net</span>
+      <div style="height:10px;border-radius:6px;background:rgba(255,255,255,0.05);overflow:hidden;"><div style="height:100%;width:${npW};border-radius:6px;background:linear-gradient(90deg,#34d399,#10b981);"></div></div>
+      <span class="vf-mono" style="font-size:13px;font-weight:800;text-align:right;color:${F.netProfit>=0?green:red};">${fmt(F.netProfit,true)}</span>
+    </div>`;
+  return `<div class="vf-card">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px;">
+      <div style="font-size:15px;font-weight:700;">Compte de résultat</div>
+      <div style="font-size:12px;color:#8b7fa8;font-weight:600;">Marge nette <span class="vf-mono" style="color:${F.margin>=0?green:red};">${(F.margin*100).toFixed(1).replace('.',',')}%</span></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:11px;">${bars}${npBar}</div>
+    ${F.adSpend===0&&F.cogs===0?`<div style="margin-top:14px;font-size:11.5px;color:#8b7fa8;">💡 Renseigne ton COGS et ta dépense pub dans <a href="#" data-nav="ads">Coûts pub</a> pour un profit net exact.</div>`:''}
+  </div>`;
+}
+
+function adsCard(){
+  const F=finance(), D=STATE.D;
+  const maxSpend = Math.max(...F.platforms.map(p=>p.spend), 1);
+  const bars = F.platforms.map(p => {
+    const share = F.platSpend?(p.spend/F.platSpend*100):0;
+    return `<div style="display:flex;flex-direction:column;gap:8px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="width:9px;height:9px;border-radius:3px;background:${p.color};"></span>
+        <span style="font-size:13px;font-weight:700;">${p.name}</span>
+        <span class="vf-mono" style="margin-left:auto;font-size:14px;font-weight:800;color:${p.color};">${fmt(p.spend,true)}</span>
+      </div>
+      <div style="height:8px;border-radius:5px;background:rgba(255,255,255,0.05);overflow:hidden;"><div style="height:100%;width:${(p.spend/maxSpend*100).toFixed(0)}%;border-radius:5px;background:${p.color};"></div></div>
+      <div class="vf-mono" style="display:flex;justify-content:space-between;font-size:11px;color:#8b7fa8;"><span>${share.toFixed(0)}% du budget</span><span>${F.adSpend?'ROAS blended '+F.blendedRoas.toFixed(2).replace('.',','):'—'}</span></div>
+    </div>`;
+  }).join('');
+  const empty = F.platSpend===0;
+  return `<div class="vf-card">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px;">
+      <div style="font-size:15px;font-weight:700;">Performance publicitaire</div>
+      <div style="font-size:12px;color:#8b7fa8;font-weight:600;">ROAS blended <span class="vf-mono" style="color:#d8b4fe;font-weight:700;">${F.blendedRoas?F.blendedRoas.toFixed(2).replace('.',',')+'x':'—'}</span></div>
+    </div>
+    ${empty?`<div style="text-align:center;padding:18px 10px;color:#8b7fa8;font-size:12.5px;line-height:1.6;">Aucune dépense pub renseignée.<br><a href="#" data-nav="ads">Ajouter mes dépenses Meta / Google / TikTok →</a></div>`:`<div style="display:flex;flex-direction:column;gap:14px;">${bars}</div>`}
+  </div>`;
+}
+
+function cashflowData(){
+  const D=STATE.D, F=finance();
+  // bucket the timeseries into up to 6 groups; inflow = net sales; outflow = COGS + prorated ad/opex
+  const ts = D.ts.filter(x=>true);
+  const n = ts.length; if(!n) return [];
+  const groups = Math.min(6, Math.max(1, n<=6?n:6));
+  const per = Math.ceil(n/groups);
+  const out=[];
+  for(let i=0;i<n;i+=per){
+    const chunk = ts.slice(i,i+per);
+    const inflow = chunk.reduce((a,x)=>a+x.net,0);
+    const outflow = inflow*(num(STATE.settings.cogsPct)/100) + (F.adSpend+F.opex)*(chunk.length/n);
+    out.push({ label: shortDay(chunk[0].day), in: inflow, out: outflow });
+  }
+  return out;
+}
+function cashflowCard(){
+  const cf = cashflowData(), F=finance(), D=STATE.D;
+  const maxCf = Math.max(...cf.map(c=>Math.max(c.in,c.out)), 1);
+  const netFlow = cf.reduce((a,c)=>a+(c.in-c.out),0);
+  const bars = cf.map(c => `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;height:100%;justify-content:flex-end;">
+      <div style="width:100%;display:flex;gap:4px;align-items:flex-end;height:100%;">
+        <div style="flex:1;height:${(c.in/maxCf*100).toFixed(0)}%;border-radius:5px 5px 2px 2px;background:linear-gradient(180deg,${accent},${accent2});"></div>
+        <div style="flex:1;height:${(c.out/maxCf*100).toFixed(0)}%;border-radius:5px 5px 2px 2px;background:rgba(251,113,133,0.55);"></div>
+      </div>
+      <span class="vf-mono" style="font-size:10.5px;color:#6f6588;">${c.label}</span>
+    </div>`).join('');
+  return `<div class="vf-card">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px;">
+      <div style="font-size:15px;font-weight:700;">Trésorerie <span style="font-size:11px;color:#6f6588;font-weight:500;">(estimé)</span></div>
+      <div style="font-size:12px;color:#8b7fa8;font-weight:600;">Flux net <span class="vf-mono" style="color:${netFlow>=0?green:red};font-weight:700;">${fmt(netFlow,true)}</span></div>
+    </div>
+    <div style="display:flex;align-items:flex-end;gap:14px;height:120px;padding:18px 0 6px;">${bars}</div>
+    <div style="display:flex;gap:16px;margin-top:4px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.05);">
+      <div style="display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:600;color:#cfc6e6;"><span style="width:9px;height:9px;border-radius:3px;background:${accent};"></span>Entrées (net sales)</div>
+      <div style="display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:600;color:#cfc6e6;"><span style="width:9px;height:9px;border-radius:3px;background:rgba(251,113,133,0.7);"></span>Sorties (COGS+pub)</div>
+    </div>
+  </div>`;
+}
+
+function statusFR(fin, ful){
+  if(fin==='REFUNDED') return {t:'Remboursé',c:red,b:'rgba(251,113,133,0.13)'};
+  if(fin==='PARTIALLY_REFUNDED') return {t:'Part. remb.',c:amber,b:'rgba(251,191,36,0.13)'};
+  if(ful==='FULFILLED') return {t:'Livré',c:green,b:'rgba(52,211,153,0.13)'};
+  if(ful==='PARTIALLY_FULFILLED') return {t:'Partiel',c:amber,b:'rgba(251,191,36,0.13)'};
+  if(fin==='PAID') return {t:'Payé',c:'#d8b4fe',b:'rgba(183,148,255,0.14)'};
+  if(fin==='PENDING') return {t:'En attente',c:amber,b:'rgba(251,191,36,0.13)'};
+  return {t:(fin||ful||'—'),c:'#8b7fa8',b:'rgba(255,255,255,0.05)'};
+}
+function ordersCard(full){
+  const D=STATE.D; const list = full?D.orders:D.orders.slice(0,8);
+  const head = `<div style="display:grid;grid-template-columns:1fr 1.6fr 1.1fr 0.7fr 1fr 1fr;gap:12px;padding:0 4px 11px;border-bottom:1px solid rgba(255,255,255,0.06);">
+    <span class="vf-th">Commande</span><span class="vf-th">Client</span><span class="vf-th">Date</span><span class="vf-th" style="text-align:center;">Art.</span><span class="vf-th" style="text-align:right;">Total</span><span class="vf-th" style="text-align:right;">Statut</span></div>`;
+  const body = list.map(o => {
+    const st = statusFR(o.financialStatus, o.fulfillmentStatus);
+    const d = new Date(o.createdAt).toLocaleDateString('fr-FR',{day:'2-digit',month:'short'});
+    const total = parseFloat(o.totalPrice)||0;
+    return `<div style="display:grid;grid-template-columns:1fr 1.6fr 1.1fr 0.7fr 1fr 1fr;gap:12px;padding:12px 4px;border-bottom:1px solid rgba(255,255,255,0.04);align-items:center;">
+      <span class="vf-mono" style="font-size:12.5px;font-weight:600;color:${accent};">${o.name}</span>
+      <span style="font-size:13px;font-weight:600;color:#ece7f7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${o.customerName||'—'}</span>
+      <span class="vf-mono" style="font-size:12px;color:#8b7fa8;">${d}</span>
+      <span class="vf-mono" style="font-size:12.5px;color:#8b7fa8;text-align:center;">${o.lineItemCount}</span>
+      <span class="vf-mono" style="font-size:13px;font-weight:700;text-align:right;color:#ece7f7;">${fmt2(total)}</span>
+      <span style="justify-self:end;font-size:11px;font-weight:700;padding:4px 10px;border-radius:7px;color:${st.c};background:${st.b};">${st.t}</span>
+    </div>`;
+  }).join('');
+  return `<div class="vf-card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div style="font-size:15px;font-weight:700;">Commandes récentes</div>
+      ${full?'':`<a href="#" data-nav="orders" style="font-size:12.5px;font-weight:600;">Tout voir →</a>`}
+    </div>${head}<div style="display:flex;flex-direction:column;">${body||'<div style="padding:20px;color:#8b7fa8;font-size:13px;">Aucune commande sur la période.</div>'}</div>
+  </div>`;
+}
+
+function productsCard(){
+  const D=STATE.D; const max = Math.max(...D.products.map(p=>p.gross),1);
+  const body = D.products.map(p => `<div style="display:grid;grid-template-columns:1.8fr 1fr 0.7fr 1fr;gap:12px;padding:12px 4px;border-bottom:1px solid rgba(255,255,255,0.04);align-items:center;">
+      <div style="min-width:0;"><div style="font-size:13px;font-weight:600;color:#ece7f7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.title}</div>
+        <div style="height:5px;border-radius:4px;background:rgba(255,255,255,0.05);margin-top:6px;overflow:hidden;"><div style="height:100%;width:${(p.gross/max*100).toFixed(0)}%;background:linear-gradient(90deg,${accent},${accent2});border-radius:4px;"></div></div></div>
+      <span class="vf-mono" style="font-size:13px;font-weight:700;text-align:right;color:#ece7f7;">${fmt(p.gross,true)}</span>
+      <span class="vf-mono" style="font-size:12.5px;text-align:right;color:#8b7fa8;">${p.orders}</span>
+      <span class="vf-mono" style="font-size:12.5px;text-align:right;color:${p.net>=0?green:red};">${fmt(p.net,true)}</span>
+    </div>`).join('');
+  return `<div class="vf-card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;"><div style="font-size:15px;font-weight:700;">Top produits</div><div style="font-size:12px;color:#8b7fa8;font-weight:600;">par CA brut</div></div>
+    <div style="display:grid;grid-template-columns:1.8fr 1fr 0.7fr 1fr;gap:12px;padding:0 4px 11px;border-bottom:1px solid rgba(255,255,255,0.06);"><span class="vf-th">Produit</span><span class="vf-th" style="text-align:right;">CA brut</span><span class="vf-th" style="text-align:right;">Cmd</span><span class="vf-th" style="text-align:right;">Net</span></div>
+    <div style="display:flex;flex-direction:column;">${body||'<div style="padding:20px;color:#8b7fa8;">Aucune donnée produit.</div>'}</div>
+  </div>`;
+}
+
+function sessionsCard(){
+  const D=STATE.D, SS=D.SS;
+  const funnel = [
+    { label:'Sessions', val:SS.sessions, color:accent },
+    { label:'Arrivés au checkout', val:SS.reachedCheckout, color:teal },
+    { label:'Commandes complétées', val:SS.completed, color:green }
+  ];
+  const max = Math.max(...funnel.map(f=>f.val),1);
+  const bars = funnel.map(f => `<div style="display:flex;flex-direction:column;gap:6px;">
+      <div style="display:flex;justify-content:space-between;font-size:12.5px;font-weight:600;"><span style="color:#cfc6e6;">${f.label}</span><span class="vf-mono" style="color:${f.color};">${f.val}</span></div>
+      <div style="height:12px;border-radius:6px;background:rgba(255,255,255,0.05);overflow:hidden;"><div style="height:100%;width:${(f.val/max*100).toFixed(1)}%;background:${f.color};border-radius:6px;"></div></div>
+    </div>`).join('');
+  return `<div class="vf-card">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px;"><div style="font-size:15px;font-weight:700;">Entonnoir de conversion</div><div style="font-size:12px;color:#8b7fa8;font-weight:600;">Taux <span class="vf-mono" style="color:${green};">${SS.conv.toFixed(2).replace('.',',')}%</span></div></div>
+    <div style="display:flex;flex-direction:column;gap:14px;">${bars}</div>
+    <div style="height:160px;position:relative;margin-top:18px;"><canvas id="sessChart"></canvas></div>
+  </div>`;
+}
+function drawSessChart(){
+  const c=document.getElementById('sessChart'); if(!c||!window.Chart) return;
+  const D=STATE.D;
+  if(window._sessChart) window._sessChart.destroy();
+  window._sessChart = new Chart(c,{ type:'bar',
+    data:{ labels:D.sessTs.map(x=>shortDay(x.day)), datasets:[{ label:'Sessions', data:D.sessTs.map(x=>x.sessions), backgroundColor:'rgba(183,148,255,0.55)', borderRadius:4 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(20,14,32,0.95)',borderColor:'rgba(167,139,250,0.3)',borderWidth:1}},
+      scales:{ x:{grid:{display:false},ticks:{color:'#6f6588',font:{size:10},maxRotation:0,autoSkip:true,maxTicksLimit:8}}, y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#6f6588',font:{size:10}}} } }
+  });
+}
+
+function settingsCard(){
+  const s=STATE.settings, F=finance(), D=STATE.D;
+  const field=(k,label,ph,suffix)=>`<div style="display:flex;flex-direction:column;gap:5px;">
+    <label style="font-size:11.5px;font-weight:600;color:#9a8fb5;">${label}</label>
+    <div style="position:relative;"><input class="vf-inp" data-set="${k}" type="number" min="0" step="any" value="${s[k]||''}" placeholder="${ph}">${suffix?`<span style="position:absolute;right:11px;top:9px;font-size:12px;color:#6f6588;" class="vf-mono">${suffix}</span>`:''}</div>
+  </div>`;
+  return `<div class="vf-card">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px;"><div style="font-size:15px;font-weight:700;">Paramètres coûts (mensuels)</div><div style="font-size:11.5px;color:#8b7fa8;">Sauvegardé localement · appliqué au ratio de la période</div></div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">
+      ${field('cogsPct','COGS (% du net sales)','40','%')}
+      ${field('adMonthly','Dépense pub totale / mois','0',sym())}
+      ${field('opexMonthly','Charges fixes / mois','0',sym())}
+      ${field('meta','Meta Ads / mois','0',sym())}
+      ${field('google','Google Ads / mois','0',sym())}
+      ${field('tiktok','TikTok Ads / mois','0',sym())}
+    </div>
+    <div style="display:flex;gap:10px;margin-top:16px;align-items:center;">
+      <button id="saveSettings" style="padding:9px 18px;border-radius:10px;border:none;background:linear-gradient(145deg,${accent},${accent2});color:#0a0710;font-weight:700;font-size:13px;cursor:pointer;">Enregistrer & recalculer</button>
+      <span style="font-size:11.5px;color:#8b7fa8;">Astuce : si tu remplis Meta+Google+TikTok, laisse « Dépense pub totale » vide, elle sera additionnée automatiquement.</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:18px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06);">
+      ${miniStat('Profit net', fmt(F.netProfit,true), F.netProfit>=0?green:red)}
+      ${miniStat('Marge nette', (F.margin*100).toFixed(1).replace('.',',')+'%', F.margin>=0?green:red)}
+      ${miniStat('ROAS blended', F.blendedRoas?F.blendedRoas.toFixed(2).replace('.',',')+'x':'—', accent)}
+      ${miniStat('CAC', F.cac?fmt2(F.cac):'—', '#d8b4fe')}
+    </div>
+  </div>`;
+}
+function miniStat(l,v,c){ return `<div style="padding:12px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(167,139,250,0.1);"><div style="font-size:11px;color:#9a8fb5;font-weight:600;text-transform:uppercase;">${l}</div><div class="vf-mono" style="font-size:19px;font-weight:800;color:${c};margin-top:4px;">${v}</div></div>`; }
+
+function bindSettings(){
+  const btn=document.getElementById('saveSettings'); if(!btn) return;
+  btn.onclick=()=>{
+    document.querySelectorAll('[data-set]').forEach(inp=>{ const k=inp.dataset.set; STATE.settings[k]=parseFloat(inp.value)||0; });
+    // if total ad not set but platforms are, sum them
+    const platSum=(STATE.settings.meta||0)+(STATE.settings.google||0)+(STATE.settings.tiktok||0);
+    if(platSum>0 && !(STATE.settings.adMonthly>0)) STATE.settings.adMonthly=platSum;
+    saveSettings(STATE.settings); renderChrome(); renderView();
+  };
+}
+
+// ---------- view router ----------
+function loadingBlock(){ return `<div class="vf-card" style="display:flex;align-items:center;justify-content:center;gap:12px;padding:60px;color:#9a8fb5;"><span class="vf-spin"></span> Synchronisation des données Shopify…</div>`; }
+function errorBlock(){ return `<div class="vf-card" style="padding:40px;color:${red};"><div style="font-weight:700;margin-bottom:8px;">Connexion Shopify interrompue</div><div style="font-size:13px;color:#cfc6e6;">${STATE.error}</div><button id="retry" style="margin-top:14px;padding:8px 16px;border-radius:9px;border:none;background:${accent};color:#0a0710;font-weight:700;cursor:pointer;">Réessayer</button></div>`; }
+
+function renderView(){
+  const c = document.getElementById('content');
+  if(STATE.loading){ c.innerHTML = loadingBlock(); return; }
+  if(STATE.error){ c.innerHTML = errorBlock(); const r=document.getElementById('retry'); if(r) r.onclick=fetchAll; return; }
+  let html='';
+  switch(STATE.nav){
+    case 'overview':
+      html = `<div class="vf-view">${kpiRow()}
+        <div style="display:grid;grid-template-columns:1.62fr 1fr;gap:20px;align-items:start;margin-top:20px;">
+          <div style="display:flex;flex-direction:column;gap:20px;min-width:0;">${revenueChartCard()}${pnlCard()}</div>
+          <div style="display:flex;flex-direction:column;gap:20px;min-width:0;">${adsCard()}${cashflowCard()}</div>
+        </div>
+        <div style="margin-top:20px;">${ordersCard(false)}</div></div>`;
+      break;
+    case 'pnl':
+      html = `<div class="vf-view">${kpiRow()}<div style="margin-top:20px;">${settingsCard()}</div><div style="margin-top:20px;display:grid;grid-template-columns:1.4fr 1fr;gap:20px;align-items:start;">${pnlCard()}${cashflowCard()}</div></div>`;
+      break;
+    case 'ads':
+      html = `<div class="vf-view">${settingsCard()}<div style="margin-top:20px;display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;">${adsCard()}${revenueChartCard()}</div></div>`;
+      break;
+    case 'cash':
+      html = `<div class="vf-view">${kpiRow()}<div style="margin-top:20px;">${cashflowCard()}</div><div style="margin-top:20px;">${revenueChartCard()}</div></div>`;
+      break;
+    case 'orders':
+      html = `<div class="vf-view">${ordersCard(true)}</div>`;
+      break;
+    case 'products':
+      html = `<div class="vf-view">${productsCard()}<div style="margin-top:20px;">${revenueChartCard()}</div></div>`;
+      break;
+    case 'sessions':
+      html = `<div class="vf-view"><div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;">${sessionsCard()}${adsCard()}</div></div>`;
+      break;
+  }
+  c.innerHTML = html;
+  // post-render hooks
+  if(document.getElementById('revChart')) drawRevChart();
+  if(document.getElementById('sessChart')) drawSessChart();
+  bindSettings();
+  // bind inline data-nav links
+  c.querySelectorAll('[data-nav]').forEach(a => a.onclick = e => { e.preventDefault(); STATE.nav=a.dataset.nav; renderChrome(); renderView(); });
+}
+
+document.getElementById('reloadBtn').onclick = fetchAll;
+
+// boot
+renderChrome();
+fetchAll();
+</script>
+</body>
+</html>
