@@ -220,6 +220,19 @@ function monthAgg(month){
 function effectiveFixed(m){ m=m||STATE.month; return STATE.fixedByMonth[m]||[]; }
 function fixedTotal(m){ return effectiveFixed(m||STATE.month).reduce((a,f)=>a+num(f.amount),0); }
 function prevMonthKey(m){ const [y,mo]=m.split('-').map(Number); const d=new Date(y,mo-2,1); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+// SOURCE UNIQUE DE VÉRITÉ pour le P&L d'un mois (utilisée partout : CR, récap, annuel, KPIs).
+function pnl(m){
+  m=m||STATE.month;
+  const A=monthAgg(m);                         // ca, caHT, cout, frais(override), cmd, ads, marge(=caHT-cout-frais-ads)
+  const fixed=fixedTotal(m);
+  const impot=A.caHT*(STATE.settings.impotPct/100);
+  const margeOp=A.marge;                        // marge opérationnelle (avant charges fixes & impôt)
+  const resAvantImpot=margeOp-fixed;
+  const benef=resAvantImpot-impot;              // bénéfice net — TOUJOURS base CA HT
+  return { ca:A.ca, caHT:A.caHT, cout:A.cout, frais:A.frais, ads:A.ads, cmd:A.cmd,
+           fixed, impot, margeOp, resAvantImpot, benef,
+           txMarge: A.caHT?benef/A.caHT:0, txMargeOp: A.caHT?margeOp/A.caHT:0, roas:A.ads?A.ca/A.ads:0 };
+}
 
 // ---------- nav ----------
 const NAV=[
@@ -376,24 +389,25 @@ async function importShopify(){
 
 // ---------- RECAP ----------
 function recapView(){
-  const A=monthAgg(STATE.month); const impot=A.caHT*(STATE.settings.impotPct/100);
-  const posts=[{n:'Coût produit',v:A.cout,c:accent},{n:'Frais de paiement',v:A.frais,c:teal},{n:'Dépenses ads',v:A.ads,c:amber}]
+  const P=pnl(STATE.month); const base=P.caHT||1;
+  const posts=[{n:'Coût produit',v:P.cout,c:accent},{n:'Frais de paiement',v:P.frais,c:teal},{n:'Dépenses ads',v:P.ads,c:amber}]
     .concat(effectiveFixed(STATE.month).filter(f=>num(f.amount)>0).map(f=>({n:f.name,v:num(f.amount),c:'#f472b6'})));
-  posts.push({n:'Impôt / cotisations',v:impot,c:'#60a5fa'});
+  posts.push({n:'Impôt / cotisations',v:P.impot,c:'#60a5fa'});
   const totalCost=posts.reduce((a,p)=>a+p.v,0);
-  const benef=A.ca - totalCost; // CA TTC - tous coûts (dont impôt)
-  const rowsH=posts.map(p=>`<tr><td style="text-align:left;"><span style="display:inline-flex;align-items:center;gap:8px;"><span style="width:9px;height:9px;border-radius:3px;background:${p.c};"></span>${p.n}</span></td><td class="vf-mono" style="text-align:right;">${eur2(p.v)}</td><td class="vf-mono" style="text-align:right;color:${amber};">${totalCost?pctv(p.v/totalCost):'—'}</td><td class="vf-mono" style="text-align:right;color:var(--muted2);">${A.ca?pctv(p.v/A.ca):'—'}</td></tr>`).join('');
+  const benef=P.benef; // = CA HT − tous les coûts (concorde avec le compte de résultat)
+  const rowsH=posts.map(p=>`<tr><td style="text-align:left;"><span style="display:inline-flex;align-items:center;gap:8px;"><span style="width:9px;height:9px;border-radius:3px;background:${p.c};"></span>${p.n}</span></td><td class="vf-mono" style="text-align:right;">${eur2(p.v)}</td><td class="vf-mono" style="text-align:right;color:${amber};">${totalCost?pctv(p.v/totalCost):'—'}</td><td class="vf-mono" style="text-align:right;color:var(--muted2);">${pctv(p.v/base)}</td></tr>`).join('');
   return `<div class="vf-view">
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
-      ${miniCard('CA TTC',eur(A.ca),'var(--txt)')}${miniCard('Coûts totaux',eur(totalCost),red)}${miniCard('Bénéfice net',eur(benef),benef<0?red:green)}${miniCard('Marge nette',A.ca?pctv(benef/A.ca):'—',benef<0?red:green)}
+      ${miniCard('CA HT',eur(P.caHT),'var(--txt)')}${miniCard('Coûts totaux',eur(totalCost),red)}${miniCard('Bénéfice net',eur(benef),benef<0?red:green)}${miniCard('Marge nette',pctv(P.txMarge),benef<0?red:green)}
     </div>
+    <div style="font-size:11.5px;color:var(--muted2);margin-top:-6px;">CA TTC ${eur2(P.ca)} · TVA collectée ${eur2(P.ca-P.caHT)} (reversée, non comptée dans le bénéfice). Base de calcul = CA HT.</div>
     <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:18px;align-items:start;margin-top:4px;">
       <div class="vf-card">
         <div style="font-size:15px;font-weight:700;margin-bottom:12px;">Répartition par poste de dépense</div>
         <table style="width:100%;border-collapse:collapse;font-size:13px;">
-          <tr><th class="vf-th" style="text-align:left;padding-bottom:8px;">Poste</th><th class="vf-th" style="text-align:right;">Montant</th><th class="vf-th" style="text-align:right;">% coûts</th><th class="vf-th" style="text-align:right;">% du CA</th></tr>
+          <tr><th class="vf-th" style="text-align:left;padding-bottom:8px;">Poste</th><th class="vf-th" style="text-align:right;">Montant</th><th class="vf-th" style="text-align:right;">% coûts</th><th class="vf-th" style="text-align:right;">% du CA HT</th></tr>
           ${rowsH}
-          <tr style="border-top:2px solid rgba(167,139,250,0.3);"><td style="text-align:left;font-weight:800;color:${accent};padding-top:8px;">Total coûts</td><td class="vf-mono" style="text-align:right;font-weight:800;padding-top:8px;">${eur2(totalCost)}</td><td style="text-align:right;padding-top:8px;">100%</td><td class="vf-mono" style="text-align:right;font-weight:700;padding-top:8px;">${A.ca?pctv(totalCost/A.ca):'—'}</td></tr>
+          <tr style="border-top:2px solid rgba(167,139,250,0.3);"><td style="text-align:left;font-weight:800;color:${accent};padding-top:8px;">Total coûts</td><td class="vf-mono" style="text-align:right;font-weight:800;padding-top:8px;">${eur2(totalCost)}</td><td style="text-align:right;padding-top:8px;">100%</td><td class="vf-mono" style="text-align:right;font-weight:700;padding-top:8px;">${pctv(totalCost/base)}</td></tr>
         </table>
       </div>
       <div class="vf-card"><div style="font-size:15px;font-weight:700;margin-bottom:8px;">Poids des postes</div><div style="height:250px;position:relative;"><canvas id="recapChart"></canvas></div></div>
@@ -402,9 +416,9 @@ function recapView(){
 }
 function drawRecap(){
   const c=document.getElementById('recapChart'); if(!c||!window.Chart)return;
-  const A=monthAgg(STATE.month); const impot=A.caHT*(STATE.settings.impotPct/100);
-  const posts=[['Coût produit',A.cout,accent],['Frais paiement',A.frais,teal],['Ads',A.ads,amber]].concat(effectiveFixed(STATE.month).filter(f=>num(f.amount)>0).map(f=>[f.name,num(f.amount),'#f472b6'])); posts.push(['Impôt',impot,'#60a5fa']);
-  const benef=A.ca-posts.reduce((a,p)=>a+p[1],0); if(benef>0)posts.push(['Bénéfice net',benef,green]);
+  const P=pnl(STATE.month);
+  const posts=[['Coût produit',P.cout,accent],['Frais paiement',P.frais,teal],['Ads',P.ads,amber]].concat(effectiveFixed(STATE.month).filter(f=>num(f.amount)>0).map(f=>[f.name,num(f.amount),'#f472b6'])); posts.push(['Impôt',P.impot,'#60a5fa']);
+  if(P.benef>0)posts.push(['Bénéfice net',P.benef,green]);
   if(window._rp)window._rp.destroy();
   window._rp=new Chart(c,{type:'doughnut',data:{labels:posts.map(p=>p[0]),datasets:[{data:posts.map(p=>p[1]),backgroundColor:posts.map(p=>p[2]),borderColor:'rgba(9,6,15,0.6)',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'bottom',labels:{color:THX.txt2,font:{size:11},boxWidth:12,padding:8}},tooltip:{callbacks:{label:x=>x.label+': '+eur2(x.parsed)}}}}});
 }
@@ -518,11 +532,10 @@ function annualData(){
   const y=parseInt(STATE.month.split('-')[0]); const rows=[];
   const T={ca:0,caHT:0,cout:0,frais:0,cmd:0,ads:0,marge:0,benef:0,obj:0,impot:0,fixed:0};
   for(let m=0;m<12;m++){
-    const key=y+'-'+String(m+1).padStart(2,'0'); const A=monthAgg(key);
-    const active=A.ca>0; const impot=A.caHT*(STATE.settings.impotPct/100); const fixed=active?fixedTotal(key):0;
-    const benef=A.marge-fixed-impot; const obj=num(STATE.objectifs[m]);
-    const r={m,ca:A.ca,caHT:A.caHT,cout:A.cout,frais:A.frais,cmd:A.cmd,ads:A.ads,marge:A.marge,impot,fixed,benef,obj,att:obj?A.ca/obj:0,roas:A.ads?A.ca/A.ads:0,txm:A.caHT?A.marge/A.caHT:0};
-    rows.push(r); T.ca+=r.ca;T.caHT+=r.caHT;T.cout+=r.cout;T.frais+=r.frais;T.cmd+=r.cmd;T.ads+=r.ads;T.marge+=r.marge;T.benef+=r.benef;T.obj+=r.obj;T.impot+=impot;T.fixed+=fixed;
+    const key=y+'-'+String(m+1).padStart(2,'0'); const P=pnl(key);
+    const obj=num(STATE.objectifs[m]);
+    const r={m,ca:P.ca,caHT:P.caHT,cout:P.cout,frais:P.frais,cmd:P.cmd,ads:P.ads,marge:P.margeOp,impot:P.impot,fixed:P.fixed,benef:P.benef,obj,att:obj?P.ca/obj:0,roas:P.roas,txm:P.txMargeOp};
+    rows.push(r); T.ca+=r.ca;T.caHT+=r.caHT;T.cout+=r.cout;T.frais+=r.frais;T.cmd+=r.cmd;T.ads+=r.ads;T.marge+=r.marge;T.benef+=r.benef;T.obj+=r.obj;T.impot+=r.impot;T.fixed+=r.fixed;
   }
   return {y,rows,T};
 }
@@ -665,20 +678,21 @@ function drawProducts(){
 
 // ---------- COMPTE DE RESULTAT (mensuel) ----------
 function resultatView(){
-  const A=monthAgg(STATE.month); const s=STATE.settings; const impot=A.caHT*(s.impotPct/100); const fixed=fixedTotal();
+  const P=pnl(STATE.month); const s=STATE.settings;
   const [yy,mm]=STATE.month.split('-').map(Number);
-  const items=[{l:'CA HT',v:A.caHT,k:'in'},{l:'Coût produit',v:-A.cout,k:'out'},{l:'Frais de paiement',v:-A.frais,k:'out'},{l:'Dépenses ads',v:-A.ads,k:'out'},{l:'Charges fixes',v:-fixed,k:'out'}].filter(r=>r.k==='in'||Math.abs(r.v)>0.001);
-  const maxMag=Math.max(A.caHT,1);
-  const bars=items.map(p=>{const w=(Math.abs(p.v)/maxMag*100).toFixed(1)+'%';return `<div style="display:grid;grid-template-columns:160px 1fr 120px;align-items:center;gap:14px;"><span style="font-size:12.5px;font-weight:600;color:${p.k==='in'?'var(--txt)':'var(--txt2)'};">${p.l}</span><div style="height:10px;border-radius:6px;background:var(--line);overflow:hidden;"><div style="height:100%;width:${w};border-radius:6px;background:${p.k==='in'?'linear-gradient(90deg,'+accent+','+accent2+')':'rgba(251,113,133,0.6)'};"></div></div><span class="vf-mono" style="font-size:13px;font-weight:700;text-align:right;color:${p.k==='in'?'var(--acc-tx)':red};">${eur2(p.v)}</span></div>`;}).join('');
-  const resAvant=A.marge-fixed; const benef=resAvant-impot;
-  const line=(l,v,c,bold)=>`<div style="display:grid;grid-template-columns:160px 1fr 120px;align-items:center;gap:14px;padding-top:10px;margin-top:2px;border-top:1px solid var(--line3);"><span style="font-size:12.5px;font-weight:${bold?800:700};color:${c};">${l}</span><div></div><span class="vf-mono" style="font-size:13px;font-weight:${bold?800:700};text-align:right;color:${c};">${eur2(v)}</span></div>`;
+  const items=[{l:'CA HT',v:P.caHT,k:'in'},{l:'Coût produit',v:-P.cout,k:'out'},{l:'Frais de paiement',v:-P.frais,k:'out'},{l:'Dépenses ads',v:-P.ads,k:'out'}].filter(r=>r.k==='in'||Math.abs(r.v)>0.001);
+  const maxMag=Math.max(P.caHT,1);
+  const bars=items.map(p=>{const w=(Math.abs(p.v)/maxMag*100).toFixed(1)+'%';return `<div style="display:grid;grid-template-columns:170px 1fr 120px;align-items:center;gap:14px;"><span style="font-size:12.5px;font-weight:600;color:${p.k==='in'?'var(--txt)':'var(--txt2)'};">${p.l}</span><div style="height:10px;border-radius:6px;background:var(--line);overflow:hidden;"><div style="height:100%;width:${w};border-radius:6px;background:${p.k==='in'?'linear-gradient(90deg,'+accent+','+accent2+')':'rgba(251,113,133,0.6)'};"></div></div><span class="vf-mono" style="font-size:13px;font-weight:700;text-align:right;color:${p.k==='in'?'var(--acc-tx)':red};">${eur2(p.v)}</span></div>`;}).join('');
+  const line=(l,v,c,bold)=>`<div style="display:grid;grid-template-columns:170px 1fr 120px;align-items:center;gap:14px;padding-top:10px;margin-top:2px;border-top:1px solid var(--line3);"><span style="font-size:12.5px;font-weight:${bold?800:700};color:${c};">${l}</span><div></div><span class="vf-mono" style="font-size:13px;font-weight:${bold?800:700};text-align:right;color:${c};">${eur2(v)}</span></div>`;
+  const fixedLine=`<div style="display:grid;grid-template-columns:170px 1fr 120px;align-items:center;gap:14px;"><span style="font-size:12.5px;font-weight:600;color:var(--txt2);">Charges fixes</span><div style="height:10px;border-radius:6px;background:var(--line);overflow:hidden;"><div style="height:100%;width:${(P.fixed/maxMag*100).toFixed(1)}%;border-radius:6px;background:rgba(251,113,133,0.6);"></div></div><span class="vf-mono" style="font-size:13px;font-weight:700;text-align:right;color:${red};">${eur2(-P.fixed)}</span></div>`;
   return `<div class="vf-view">
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
-      ${miniCard('CA TTC — '+MONTHS[mm-1],eur(A.ca),'var(--txt)')}${miniCard('Marge op.',eur(A.marge),A.marge<0?red:green)}${miniCard('Bénéfice net',eur(benef),benef<0?red:green)}${miniCard('Taux marge nette',A.ca?pctv(benef/A.ca):'—',benef<0?red:green)}
+      ${miniCard('CA HT — '+MONTHS[mm-1],eur(P.caHT),'var(--txt)')}${miniCard('Marge op.',eur(P.margeOp),P.margeOp<0?red:green)}${miniCard('Bénéfice net',eur(P.benef),P.benef<0?red:green)}${miniCard('Taux marge nette',pctv(P.txMarge),P.benef<0?red:green)}
     </div>
-    <div class="vf-card" style="max-width:760px;">
+    <div style="font-size:11.5px;color:var(--muted2);margin-top:-6px;">CA TTC ${eur2(P.ca)} · TVA ${eur2(P.ca-P.caHT)} (reversée). Le bénéfice se calcule sur le CA HT.</div>
+    <div class="vf-card" style="max-width:780px;">
       <div style="font-size:15px;font-weight:700;margin-bottom:16px;">Compte de résultat — ${MONTHS[mm-1]} ${yy}</div>
-      <div style="display:flex;flex-direction:column;gap:11px;">${bars}${line('Marge opérationnelle',A.marge,A.marge<0?red:green)}${line('Résultat avant impôt',resAvant,resAvant<0?red:'var(--acc-tx)')}${line('Impôt / cotisations ('+s.impotPct+'%)',-impot,red)}${line('Bénéfice net',benef,benef<0?red:green,true)}</div>
+      <div style="display:flex;flex-direction:column;gap:11px;">${bars}${line('= Marge opérationnelle',P.margeOp,P.margeOp<0?red:green,true)}${fixedLine}${line('= Résultat avant impôt',P.resAvantImpot,P.resAvantImpot<0?red:'var(--acc-tx)')}${line('Impôt / cotisations ('+s.impotPct+'%)',-P.impot,red)}${line('= Bénéfice net',P.benef,P.benef<0?red:green,true)}</div>
     </div>
   </div>`;
 }
