@@ -136,7 +136,7 @@ if(window.matchMedia){ try{ window.matchMedia('(prefers-color-scheme: dark)').ad
 const SPREFIX='vfx3_';
 function gatherState(){ const o={}; for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i); if(k&&k.indexOf(SPREFIX)===0&&k!=='vfx3_lastsync'){ try{o[k]=JSON.parse(localStorage.getItem(k));}catch(e){o[k]=localStorage.getItem(k);} }} return o; }
 function applyState(o){ if(!o||typeof o!=='object')return; Object.keys(o).forEach(k=>{ if(k.indexOf(SPREFIX)===0){ try{localStorage.setItem(k,JSON.stringify(o[k]));}catch(e){} } }); }
-function reloadStateFromStorage(){ STATE.month=load('vfx3_month',curMonth()); STATE.settings=Object.assign({},DEF_SET,load('vfx3_settings',{})); STATE.fixedByMonth=load('vfx3_fixedm',{}); STATE.objectifs=load('vfx3_objectifs',DEF_OBJ); STATE.ledger=load('vfx3_ledger',{}); STATE.calc=load('vfx3_calc',null); STATE.ads=load('vfx3_ads',{}); }
+function reloadStateFromStorage(){ STATE.month=load('vfx3_month',curMonth()); STATE.settings=Object.assign({},DEF_SET,load('vfx3_settings',{})); STATE.fixedByMonth=load('vfx3_fixedm',{}); STATE.fraisByMonth=load('vfx3_fraism',{}); STATE.objectifs=load('vfx3_objectifs',DEF_OBJ); STATE.ledger=load('vfx3_ledger',{}); STATE.calc=load('vfx3_calc',null); STATE.ads=load('vfx3_ads',{}); }
 function getSyncUrl(){ return load('vfx3_syncurl',''); }
 function getSyncKey(){ return load('vfx3_synckey',''); }
 function autoSync(){ return load('vfx3_autosync',false); }
@@ -149,6 +149,10 @@ function exportJSON(){ const blob=new Blob([JSON.stringify(gatherState(),null,2)
 function importJSON(file){ const r=new FileReader(); r.onload=()=>{ try{ applyState(JSON.parse(r.result)); reloadStateFromStorage(); cloudMsg('Import réussi ✓',green); renderChrome(); renderView(); }catch(e){ cloudMsg('Fichier invalide',red); } }; r.readAsText(file); }
 function cloudMsg(t,c){ const el=document.getElementById('cloud_msg'); if(el){ el.textContent=t; el.style.color=c||'var(--muted2)'; } }
 function updateSyncStatus(){ const el=document.getElementById('cloud_status'); if(!el)return; const t=load('vfx3_lastsync',null); el.textContent=t?('Dernière synchro : '+new Date(t).toLocaleString('fr-FR')):'Jamais synchronisé sur cet appareil'; }
+// Envoi de secours à la fermeture/onglet caché (évite la perte du dernier changement)
+function flushBeacon(){ try{ if(!getSyncUrl()||!autoSync())return; const payload=JSON.stringify({action:'save',key:getSyncKey(),data:gatherState()}); if(navigator.sendBeacon){ navigator.sendBeacon(getSyncUrl(), new Blob([payload],{type:'text/plain;charset=UTF-8'})); localStorage.setItem('vfx3_lastsync',new Date().toISOString()); } }catch(e){} }
+window.addEventListener('pagehide', flushBeacon);
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') flushBeacon(); });
 
 function curMonth(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
 const STATE={
@@ -156,6 +160,7 @@ const STATE={
   month: load('vfx3_month', curMonth()),
   settings: Object.assign({},DEF_SET, load('vfx3_settings',{})),
   fixedByMonth: load('vfx3_fixedm', {}),
+  fraisByMonth: load('vfx3_fraism', {}),
   objectifs: load('vfx3_objectifs', DEF_OBJ),
   ledger: load('vfx3_ledger', {}),
   weeks: [],
@@ -188,7 +193,7 @@ async function mcp(tool,args){
 function computeDay(e){
   const s=STATE.settings, ca=num(e.ca), tva=s.tva/100;
   const caHT=ca/(1+tva), cout=num(e.cout), frais=ca*(s.fraisPct/100), cmd=num(e.cmd), ads=num(e.ads);
-  const cpa=cmd?ads/cmd:0, cpar=caHT?ads/caHT:0, panier=cmd?ca/cmd:0;
+  const cpa=cmd?ads/cmd:0, cpar=(cmd&&caHT)?cpa/caHT:0, panier=cmd?ca/cmd:0;
   const marge=caHT-cout-frais-ads, txm=caHT?marge/caHT:0, roas=ads?ca/ads:0;
   return {ca,caHT,cout,frais,cmd,ads,cpa,cpar,panier,marge,txm,roas};
 }
@@ -202,21 +207,19 @@ function buildWeeks(){
   }
   STATE.weeks=weeks;
 }
+function fraisOverride(m){ const v=STATE.fraisByMonth[m]; return (v!=null&&v!=='')?num(v):null; }
 function monthAgg(month){
   const [y,m]=month.split('-').map(Number); const dim=new Date(y,m,0).getDate();
   const A={ca:0,caHT:0,cout:0,frais:0,cmd:0,ads:0,marge:0};
-  for(let d=1;d<=dim;d++){ const e=STATE.ledger[month+'-'+String(d).padStart(2,'0')]; if(!e)continue; const r=computeDay(e); A.ca+=r.ca;A.caHT+=r.caHT;A.cout+=r.cout;A.frais+=r.frais;A.cmd+=r.cmd;A.ads+=r.ads;A.marge+=r.marge; }
+  for(let d=1;d<=dim;d++){ const e=STATE.ledger[month+'-'+String(d).padStart(2,'0')]; if(!e)continue; const r=computeDay(e); A.ca+=r.ca;A.caHT+=r.caHT;A.cout+=r.cout;A.frais+=r.frais;A.cmd+=r.cmd;A.ads+=r.ads; }
+  const fo=fraisOverride(month); if(fo!=null) A.frais=fo;               // frais réels (payout Shopify)
+  A.marge=A.caHT-A.cout-A.frais-A.ads;                                   // marge recalculée à partir des totaux
   return A;
 }
-function fixedTemplate(m){
-  const keys=Object.keys(STATE.fixedByMonth).filter(k=>k<m).sort();
-  if(keys.length){ return STATE.fixedByMonth[keys[keys.length-1]].map(x=>({name:x.name,amount:x.amount})); }
-  const legacy=load('vfx3_fixed',null);
-  if(legacy&&legacy.length) return legacy.map(x=>({name:x.name,amount:x.amount}));
-  return DEF_FIXED.map(x=>({name:x.name,amount:x.amount}));
-}
-function effectiveFixed(m){ m=m||STATE.month; return STATE.fixedByMonth[m]||fixedTemplate(m); }
+// Coûts fixes : chaque mois est indépendant, saisie manuelle + Enregistrer.
+function effectiveFixed(m){ m=m||STATE.month; return STATE.fixedByMonth[m]||[]; }
 function fixedTotal(m){ return effectiveFixed(m||STATE.month).reduce((a,f)=>a+num(f.amount),0); }
+function prevMonthKey(m){ const [y,mo]=m.split('-').map(Number); const d=new Date(y,mo-2,1); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
 
 // ---------- nav ----------
 const NAV=[
@@ -320,7 +323,7 @@ function recomputeJournal(){
       setTxt('c_'+day.dateKey+'_caHT', e&&e.ca!=null?eur2(r.caHT):'');
       setTxt('c_'+day.dateKey+'_frais', e&&e.ca!=null?eur2(r.frais):'');
       setTxt('c_'+day.dateKey+'_cpa', e&&e.ads!=null&&r.cmd?eur2(r.cpa):'');
-      setTxt('c_'+day.dateKey+'_cpar', e&&e.ads!=null&&r.caHT?pctv(r.cpar):'');
+      setTxt('c_'+day.dateKey+'_cpar', e&&e.ads!=null&&r.cmd&&r.caHT?pctv(r.cpar):'');
       setTxt('c_'+day.dateKey+'_panier', e&&r.cmd?eur2(r.panier):'');
       const mEl=document.getElementById('c_'+day.dateKey+'_marge'); if(mEl){ mEl.textContent=e&&e.ca!=null?eur2(r.marge):''; mEl.style.color=r.marge<0?red:'var(--txt2)'; }
       setTxt('c_'+day.dateKey+'_txm', e&&e.ca!=null?pctv(r.txm):'');
@@ -328,16 +331,17 @@ function recomputeJournal(){
       W.ca+=r.ca;W.caHT+=r.caHT;W.cout+=r.cout;W.frais+=r.frais;W.cmd+=r.cmd;W.ads+=r.ads;W.marge+=r.marge;
     });
     setTxt('w_'+wi+'_ca',eur(W.ca));setTxt('w_'+wi+'_caHT',eur(W.caHT));setTxt('w_'+wi+'_cout',eur(W.cout));setTxt('w_'+wi+'_frais',eur(W.frais));
-    setTxt('w_'+wi+'_cmd',W.cmd||'');setTxt('w_'+wi+'_cpa',W.cmd?eur2(W.ads/W.cmd):'');setTxt('w_'+wi+'_cpar',W.caHT?pctv(W.ads/W.caHT):'');
+    setTxt('w_'+wi+'_cmd',W.cmd||'');setTxt('w_'+wi+'_cpa',W.cmd?eur2(W.ads/W.cmd):'');setTxt('w_'+wi+'_cpar',(W.cmd&&W.caHT)?pctv((W.ads/W.cmd)/W.caHT):'');
     setTxt('w_'+wi+'_panier',W.cmd?eur2(W.ca/W.cmd):'');setTxt('w_'+wi+'_ads',eur(W.ads));
     const wm=document.getElementById('w_'+wi+'_marge'); if(wm){wm.textContent=eur(W.marge);wm.style.color=W.marge<0?red:'var(--txt)';}
     setTxt('w_'+wi+'_txm',W.caHT?pctv(W.marge/W.caHT):'');setTxt('w_'+wi+'_roas',W.ads?(W.ca/W.ads).toFixed(2).replace('.',',')+'x':'');
     for(const k in M)M[k]+=W[k];
   });
+  const foM=fraisOverride(STATE.month); if(foM!=null) M.frais=foM; M.marge=M.caHT-M.cout-M.frais-M.ads;
   setTxt('m_ca',eur(M.ca));setTxt('m_caHT',eur(M.caHT));setTxt('m_cout',eur(M.cout));setTxt('m_frais',eur(M.frais));
-  setTxt('m_cmd',M.cmd||'');setTxt('m_cpa',M.cmd?eur2(M.ads/M.cmd):'');setTxt('m_cpar',M.caHT?pctv(M.ads/M.caHT):'');
+  setTxt('m_cmd',M.cmd||'');setTxt('m_cpa',M.cmd?eur2(M.ads/M.cmd):'');setTxt('m_cpar',(M.cmd&&M.caHT)?pctv((M.ads/M.cmd)/M.caHT):'');
   setTxt('m_panier',M.cmd?eur2(M.ca/M.cmd):'');setTxt('m_ads',eur(M.ads));
-  const mm=document.getElementById('m_marge'); if(mm){mm.textContent=eur(M.marge);mm.style.color=M.marge<0?red:'#fff';}
+  const mm=document.getElementById('m_marge'); if(mm){mm.textContent=eur(M.marge);mm.style.color=M.marge<0?red:'var(--txt)';}
   setTxt('m_txm',M.caHT?pctv(M.marge/M.caHT):'');setTxt('m_roas',M.ads?(M.ca/M.ads).toFixed(2).replace('.',',')+'x':'');
   // kpi strip
   const impot=M.caHT*(STATE.settings.impotPct/100); const benef=M.marge-fixedTotal()-impot;
@@ -406,36 +410,57 @@ function drawRecap(){
 }
 function miniCard(l,v,c){ return `<div class="vf-card" style="padding:15px 18px;"><div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;">${l}</div><div class="vf-mono" style="font-size:22px;font-weight:800;color:${c};margin-top:5px;">${v}</div></div>`; }
 
-// ---------- FIXES (par mois) ----------
-function materializeFixed(){ const m=STATE.month; if(!STATE.fixedByMonth[m]) STATE.fixedByMonth[m]=effectiveFixed(m).map(x=>({name:x.name,amount:x.amount})); return STATE.fixedByMonth[m]; }
+// ---------- FIXES (par mois — saisie manuelle + Enregistrer) ----------
+let fixBuf=null, fixBufMonth=null, fraisBuf='';
+function ensureFixBuf(force){ if(force||fixBufMonth!==STATE.month){ fixBufMonth=STATE.month; const st=STATE.fixedByMonth[STATE.month]; fixBuf=(st&&st.length?st:DEF_FIXED).map(x=>({name:x.name,amount:x.amount})); const fv=STATE.fraisByMonth[STATE.month]; fraisBuf=(fv!=null?fv:''); } }
+function monthCATTC(m){ const [y,mo]=m.split('-').map(Number); const dim=new Date(y,mo,0).getDate(); let s=0; for(let d=1;d<=dim;d++){ const e=STATE.ledger[m+'-'+String(d).padStart(2,'0')]; if(e&&e.ca!=null)s+=num(e.ca); } return s; }
 function fixesView(){
+  ensureFixBuf();
   const [yy,mm]=STATE.month.split('-').map(Number);
-  const list=effectiveFixed(STATE.month);
-  const own=!!STATE.fixedByMonth[STATE.month];
-  const rows=list.map((f,i)=>`<div style="display:grid;grid-template-columns:1fr 160px 40px;gap:10px;align-items:center;">
-     <input class="vf-inp" data-fx="${i}" data-fk="name" value="${(f.name||'').replace(/"/g,'&quot;')}" placeholder="Nom du poste" style="text-align:left;font-family:inherit;">
+  const fraisAuto=monthCATTC(STATE.month)*(STATE.settings.fraisPct/100);
+  const total=fixBuf.reduce((a,f)=>a+num(f.amount),0);
+  const rows=fixBuf.map((f,i)=>`<div style="display:grid;grid-template-columns:1fr 160px 40px;gap:10px;align-items:center;">
+     <input class="vf-inp" data-fx="${i}" data-fk="name" value="${(f.name||'').replace(/"/g,'&quot;')}" placeholder="Nom du poste" style="text-align:left;">
      <div style="position:relative;"><input class="vf-inp" data-fx="${i}" data-fk="amount" type="number" step="any" value="${f.amount!=null&&f.amount!==0?f.amount:''}" placeholder="0"><span style="position:absolute;right:11px;top:9px;font-size:12px;color:var(--dim);" class="vf-mono">€</span></div>
      <button data-del="${i}" style="border:none;background:rgba(251,113,133,0.12);color:${red};border-radius:9px;height:36px;cursor:pointer;font-size:16px;">×</button>
    </div>`).join('');
-  return `<div class="vf-view"><div class="vf-card" style="max-width:660px;">
-    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px;"><div style="font-size:15px;font-weight:700;">Charges fixes — ${MONTHS[mm-1]} ${yy}</div><div class="vf-mono" style="color:${accent};font-weight:700;">Total ${eur2(fixedTotal(STATE.month))}</div></div>
-    <div style="font-size:11.5px;color:var(--muted2);margin-bottom:14px;">Les coûts fixes peuvent varier chaque mois. Utilise les flèches ‹ › (en haut) pour changer de mois. ${own?'':'<span style="color:var(--dim);">(Ce mois reprend le modèle du mois précédent tant que tu ne le modifies pas.)</span>'}</div>
+  return `<div class="vf-view"><div class="vf-card" style="max-width:680px;">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px;"><div style="font-size:15px;font-weight:700;">Charges fixes — ${MONTHS[mm-1]} ${yy}</div><div class="vf-mono" style="color:${accent};font-weight:700;">Total <span id="fix_total">${eur2(total)}</span></div></div>
+    <div style="font-size:11.5px;color:var(--muted2);margin-bottom:16px;">Chaque mois est indépendant. Saisis tes charges, clique <b>Enregistrer</b>. Change de mois avec les flèches ‹ › en haut.</div>
+
+    <div style="padding:12px 14px;border-radius:12px;background:var(--fill2);border:1px solid var(--card-bd);margin-bottom:16px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <label style="font-size:12.5px;font-weight:600;color:var(--txt2);flex:1;">Frais de paiement réels du mois <span style="color:var(--muted2);font-weight:400;">(payout Shopify — remplace l'estimation)</span></label>
+        <div style="position:relative;width:150px;"><input class="vf-inp" id="fix_frais" type="number" step="any" value="${fraisBuf!==''?fraisBuf:''}" placeholder="auto ${eur2(fraisAuto).replace('€','')}"><span style="position:absolute;right:11px;top:9px;font-size:12px;color:var(--dim);" class="vf-mono">€</span></div>
+      </div>
+      <div style="font-size:11px;color:var(--dim);margin-top:6px;">Vide = estimation automatique (CA TTC × ${STATE.settings.fraisPct}% = ${eur2(fraisAuto)}). Renseigné = ce montant est utilisé dans le récap, le compte de résultat et le bénéfice net.</div>
+    </div>
+
+    <div style="font-size:11.5px;font-weight:700;color:var(--dim2);text-transform:uppercase;margin-bottom:8px;">Postes de charges fixes</div>
     <div style="display:flex;flex-direction:column;gap:10px;">${rows}</div>
     <button id="addFix" style="margin-top:14px;padding:9px 16px;border-radius:10px;border:1px dashed rgba(167,139,250,0.4);background:transparent;color:var(--acc-tx);font-weight:600;font-size:13px;cursor:pointer;">+ Ajouter un poste</button>
-    <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;">
-      <button id="copyAll" style="padding:8px 14px;border-radius:10px;border:1px solid rgba(167,139,250,0.25);background:transparent;color:var(--txt2);font-weight:600;font-size:12.5px;cursor:pointer;">Appliquer à tous les mois de ${yy}</button>
-      <button id="copyPrev" style="padding:8px 14px;border-radius:10px;border:1px solid rgba(167,139,250,0.25);background:transparent;color:var(--txt2);font-weight:600;font-size:12.5px;cursor:pointer;">Reprendre le mois précédent</button>
+    <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap;align-items:center;">
+      <button id="fix_save" style="padding:10px 20px;border-radius:10px;border:none;background:linear-gradient(145deg,${accent},${accent2});color:#0a0710;font-weight:700;font-size:13.5px;cursor:pointer;">Enregistrer le mois</button>
+      <button id="copyPrev" style="padding:9px 14px;border-radius:10px;border:1px solid rgba(167,139,250,0.25);background:transparent;color:var(--txt2);font-weight:600;font-size:12.5px;cursor:pointer;">Reprendre le mois précédent</button>
+      <span id="fix_msg" style="font-size:12px;color:var(--muted2);"></span>
     </div>
-    <div id="fix_msg" style="margin-top:10px;font-size:11.5px;color:var(--muted2);"></div>
-    <div style="margin-top:12px;font-size:11.5px;color:var(--muted2);line-height:1.6;">Déduites dans le <a href="#" data-nav="recap">Récap</a>, la <a href="#" data-nav="synthese">Synthèse</a> et le <a href="#" data-nav="dashboard">Résultat annuel</a> pour le bénéfice net.</div>
+    <div style="margin-top:14px;font-size:11.5px;color:var(--muted2);line-height:1.6;">Déduites dans le <a href="#" data-nav="recap">Récap</a>, la <a href="#" data-nav="synthese">Synthèse</a> et le <a href="#" data-nav="dashboard">Résultat annuel</a> pour le bénéfice net.</div>
   </div></div>`;
 }
+function updateFixTotal(){ const el=document.getElementById('fix_total'); if(el) el.textContent=eur2(fixBuf.reduce((a,f)=>a+num(f.amount),0)); }
 function bindFixes(){
-  document.querySelectorAll('[data-fx]').forEach(inp=>inp.addEventListener('input',()=>{const l=materializeFixed();const i=+inp.dataset.fx,k=inp.dataset.fk;l[i][k]=k==='amount'?(parseFloat(inp.value)||0):inp.value;save('vfx3_fixedm',STATE.fixedByMonth);}));
-  document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{const l=materializeFixed();l.splice(+b.dataset.del,1);save('vfx3_fixedm',STATE.fixedByMonth);renderView();});
-  const add=document.getElementById('addFix'); if(add)add.onclick=()=>{const l=materializeFixed();l.push({name:'',amount:0});save('vfx3_fixedm',STATE.fixedByMonth);renderView();};
-  const cAll=document.getElementById('copyAll'); if(cAll)cAll.onclick=()=>{ const src=effectiveFixed(STATE.month); const y=STATE.month.split('-')[0]; for(let m=1;m<=12;m++){ STATE.fixedByMonth[y+'-'+String(m).padStart(2,'0')]=src.map(x=>({name:x.name,amount:x.amount})); } save('vfx3_fixedm',STATE.fixedByMonth); const el=document.getElementById('fix_msg'); if(el){el.textContent='Appliqué aux 12 mois de '+y+' ✓';el.style.color=green;} };
-  const cPrev=document.getElementById('copyPrev'); if(cPrev)cPrev.onclick=()=>{ const [y,mo]=STATE.month.split('-').map(Number); const d=new Date(y,mo-2,1); const pk=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); const src=effectiveFixed(pk); STATE.fixedByMonth[STATE.month]=src.map(x=>({name:x.name,amount:x.amount})); save('vfx3_fixedm',STATE.fixedByMonth); renderView(); };
+  document.querySelectorAll('[data-fx]').forEach(inp=>inp.addEventListener('input',()=>{ const i=+inp.dataset.fx,k=inp.dataset.fk; fixBuf[i][k]=k==='amount'?(parseFloat(inp.value)||0):inp.value; if(k==='amount')updateFixTotal(); }));
+  document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{ fixBuf.splice(+b.dataset.del,1); renderView(); });
+  const fr=document.getElementById('fix_frais'); if(fr)fr.addEventListener('input',()=>{ fraisBuf=fr.value; });
+  const add=document.getElementById('addFix'); if(add)add.onclick=()=>{ fixBuf.push({name:'',amount:0}); renderView(); };
+  const cPrev=document.getElementById('copyPrev'); if(cPrev)cPrev.onclick=()=>{ const pk=prevMonthKey(STATE.month); const src=STATE.fixedByMonth[pk]||[]; fixBuf=src.map(x=>({name:x.name,amount:x.amount})); if(!fixBuf.length)fixBuf=[{name:'',amount:0}]; const fv=STATE.fraisByMonth[pk]; fraisBuf=(fv!=null?fv:''); renderView(); const el=document.getElementById('fix_msg'); if(el){el.textContent='Repris du mois précédent — pense à Enregistrer.';el.style.color=amber;} };
+  const sv=document.getElementById('fix_save'); if(sv)sv.onclick=()=>{
+    STATE.fixedByMonth[STATE.month]=fixBuf.map(x=>({name:x.name,amount:num(x.amount)}));
+    if(fraisBuf===''||fraisBuf==null) delete STATE.fraisByMonth[STATE.month]; else STATE.fraisByMonth[STATE.month]=num(fraisBuf);
+    save('vfx3_fixedm',STATE.fixedByMonth); save('vfx3_fraism',STATE.fraisByMonth);
+    ensureFixBuf(true);
+    const el=document.getElementById('fix_msg'); if(el){ el.textContent='Enregistré ✓'; el.style.color=green; }
+  };
 }
 
 // ---------- SYNTHESE ----------
