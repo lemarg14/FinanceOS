@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VaultFX — Pilotage financier</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #09060f; }
+  ::-webkit-scrollbar { width: 9px; height: 9px; }
+  ::-webkit-scrollbar-thumb { background: rgba(167,139,250,0.3); border-radius: 20px; }
+  ::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
+  @keyframes floatGlow { 0%,100% { opacity: .5; } 50% { opacity: .9; } }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  a { color: #b794ff; text-decoration: none; } a:hover { color: #d8b4fe; }
+  .vf-mono { font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace; }
+  .vf-card { padding: 20px 22px; border-radius: 20px; background: rgba(28,20,48,0.42); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(167,139,250,0.16); box-shadow: 0 22px 60px -24px rgba(124,58,237,0.5), inset 0 1px 0 rgba(255,255,255,0.06); }
+  .vf-view { animation: fadeIn .25s ease; }
+  .vf-navbtn:hover { background: rgba(167,139,250,0.10) !important; }
+  input.vf-inp { width: 100%; padding: 9px 11px; border-radius: 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(167,139,250,0.18); color: #ece7f7; font-size: 13px; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+  input.vf-inp:focus { outline: none; border-color: #b794ff; }
+  .vf-th { font-size: 10.5px; font-weight: 700; color: #7a6f95; letter-spacing: 0.02em; text-transform: uppercase; }
+  /* ledger table */
+  table.led { border-collapse: collapse; width: 100%; font-size: 12px; }
+  table.led th { position: sticky; top: 0; background: #14101f; z-index: 2; padding: 9px 6px; text-align: right; font-size: 10px; font-weight: 700; color: #9a8fb5; text-transform: uppercase; letter-spacing: .02em; border-bottom: 1px solid rgba(167,139,250,0.2); white-space: nowrap; }
+  table.led th:first-child, table.led td:first-child { text-align: left; position: sticky; left: 0; background: #120e1c; z-index: 1; }
+  table.led th:first-child { z-index: 3; }
+  table.led td { padding: 3px 5px; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.03); white-space: nowrap; }
+  table.led input { width: 78px; padding: 6px 7px; border-radius: 7px; background: rgba(183,148,255,0.07); border: 1px solid rgba(167,139,250,0.16); color: #ece7f7; font-size: 12px; text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+  table.led input:focus { outline: none; border-color: #b794ff; background: rgba(183,148,255,0.14); }
+  table.led .comp { color: #cfc6e6; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; }
+  tr.wtot td { background: rgba(167,139,250,0.09); font-weight: 700; color: #ece7f7; border-top: 1px solid rgba(167,139,250,0.2); border-bottom: 1px solid rgba(167,139,250,0.2); }
+  tr.mtot td { background: linear-gradient(90deg, rgba(124,58,237,0.28), rgba(124,58,237,0.12)); font-weight: 800; color: #fff; border-top: 2px solid #7c3aed; }
+  tr.wend td:first-child, tr.wtot td:first-child, tr.mtot td:first-child { background: #17122a; }
+  .wend { border-bottom: 1px solid rgba(167,139,250,0.15) !important; }
+</style>
+</head>
+<body>
+<div id="app" style="min-height:100vh;width:100%;font-family:'Manrope',system-ui,-apple-system,sans-serif;color:#ece7f7;background:radial-gradient(1100px 620px at 12% -12%, rgba(124,58,237,0.30), transparent 60%),radial-gradient(1000px 520px at 104% -4%, rgba(190,80,200,0.20), transparent 55%),radial-gradient(900px 700px at 50% 120%, rgba(80,50,180,0.16), transparent 60%),#09060f;display:grid;grid-template-columns:238px 1fr;letter-spacing:-0.01em;">
+  <aside style="border-right:1px solid rgba(167,139,250,0.14);padding:22px 16px;display:flex;flex-direction:column;gap:20px;position:sticky;top:0;height:100vh;">
+    <div style="display:flex;align-items:center;gap:11px;padding:4px 8px;">
+      <div style="width:34px;height:34px;border-radius:10px;background:linear-gradient(145deg,#b794ff,#7c3aed);box-shadow:0 6px 22px -6px #7c3aed;display:grid;place-items:center;font-weight:800;font-size:17px;color:#0a0710;">V</div>
+      <div><div style="font-weight:800;font-size:16px;line-height:1;">Vault<span style="color:#b794ff;">FX</span></div><div style="font-size:10.5px;color:#8b7fa8;font-weight:600;letter-spacing:0.04em;margin-top:3px;">PILOTAGE FINANCIER</div></div>
+    </div>
+    <nav id="nav" style="display:flex;flex-direction:column;gap:2px;"></nav>
+    <div style="margin-top:auto;display:flex;flex-direction:column;gap:8px;">
+      <div style="font-size:10.5px;color:#6f6588;font-weight:700;letter-spacing:0.08em;padding:0 8px;">SOURCE</div>
+      <div id="sources" style="display:flex;flex-direction:column;gap:6px;"></div>
+    </div>
+  </aside>
+  <main style="min-width:0;display:flex;flex-direction:column;">
+    <header style="display:flex;align-items:center;gap:16px;padding:14px 26px;border-bottom:1px solid rgba(167,139,250,0.12);position:sticky;top:0;z-index:30;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);background:rgba(10,7,17,0.7);">
+      <div><div id="viewTitle" style="font-size:19px;font-weight:800;">Saisie journalière</div><div id="viewSub" style="font-size:12px;color:#8b7fa8;font-weight:500;margin-top:2px;">—</div></div>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:10px;">
+        <div style="display:flex;align-items:center;gap:4px;padding:4px;border-radius:11px;background:rgba(255,255,255,0.04);border:1px solid rgba(167,139,250,0.12);">
+          <button id="mPrev" style="border:none;background:transparent;color:#cfc6e6;cursor:pointer;font-size:15px;padding:4px 9px;border-radius:8px;">‹</button>
+          <span id="mLabel" class="vf-mono" style="font-size:13px;font-weight:700;min-width:118px;text-align:center;">—</span>
+          <button id="mNext" style="border:none;background:transparent;color:#cfc6e6;cursor:pointer;font-size:15px;padding:4px 9px;border-radius:8px;">›</button>
+        </div>
+        <button id="importBtn" style="display:flex;align-items:center;gap:7px;padding:8px 12px;border-radius:11px;background:rgba(167,139,250,0.14);border:1px solid rgba(167,139,250,0.25);font-size:12.5px;font-weight:600;color:#d8b4fe;cursor:pointer;">⬇ Importer CA Shopify</button>
+        <span id="saveDot" style="width:8px;height:8px;border-radius:50%;background:#34d399;box-shadow:0 0 7px #34d399;" title="Sauvegardé"></span>
+      </div>
+    </header>
+    <div id="content" style="padding:20px 26px 46px;display:flex;flex-direction:column;gap:18px;min-height:60vh;"></div>
+  </main>
+</div>
+
+<script>
+"use strict";
+const SHOP="mcp__75d0e088-f5e9-4a7b-bdf8-b52dc05e1f06";
+const green='#34d399', red='#fb7185', amber='#fbbf24', teal='#5eead4', accent='#b794ff', accent2='#7c3aed';
+const MONTHS=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+const WD=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+
+// ---------- persistence ----------
+const DEF_SET={tva:20, fraisPct:3.5, impotPct:15, roasBE:1.65};
+const DEF_FIXED=[{name:'Remboursements',amount:0},{name:'App Shopify',amount:0},{name:'Abonnements / logiciels',amount:0}];
+const DEF_OBJ=[10000,13500,15000,23000,25000,30000,30000,30000,30000,45000,60000,50000];
+const DEMO_VARIANTS=[
+  {p:'Cils magnétiques réutilisables',v:'Mixte - N°1 des ventes',net:13192.78,gross:17153.9,ord:432},
+  {p:'Cils magnétiques réutilisables',v:'(sans variante)',net:5479.6,gross:6141.85,ord:118},
+  {p:'Cils magnétiques réutilisables',v:'Volumineux',net:2948.82,gross:4910.4,ord:124},
+  {p:'Cils magnétiques réutilisables',v:'Naturel',net:2609.24,gross:4004.9,ord:110},
+  {p:'Cils magnétiques réutilisables',v:'Cils Mystère – Nouveauté',net:372.84,gross:537.3,ord:17},
+  {p:'LashesGLAM Sérum de croissance',v:'—',net:533.94,gross:747,ord:22},
+  {p:'GLAMLASH Mascara booster',v:'—',net:470.08,gross:720.06,ord:22},
+  {p:'Nettoyant Faux Cils',v:'—',net:222.45,gross:298.5,ord:15},
+  {p:'FreshGlam Patchs yeux',v:'—',net:163.88,gross:214,ord:7},
+  {p:'LashGLAM Kit 5 en 1',v:'Mixte',net:74.24,gross:174.75,ord:3}
+];
+function load(k,f){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):f; }catch(e){ return f; } }
+function save(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} flashSaved(); schedulePush(); }
+function flashSaved(){ const d=document.getElementById('saveDot'); if(!d)return; d.style.background=amber; setTimeout(()=>d.style.background=green,300); }
+
+// ---------- Sauvegarde / synchro cloud (Google Sheets) ----------
+const SPREFIX='vfx3_';
+function gatherState(){ const o={}; for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i); if(k&&k.indexOf(SPREFIX)===0&&k!=='vfx3_lastsync'){ try{o[k]=JSON.parse(localStorage.getItem(k));}catch(e){o[k]=localStorage.getItem(k);} }} return o; }
+function applyState(o){ if(!o||typeof o!=='object')return; Object.keys(o).forEach(k=>{ if(k.indexOf(SPREFIX)===0){ try{localStorage.setItem(k,JSON.stringify(o[k]));}catch(e){} } }); }
+function reloadStateFromStorage(){ STATE.month=load('vfx3_month',curMonth()); STATE.settings=Object.assign({},DEF_SET,load('vfx3_settings',{})); STATE.fixed=load('vfx3_fixed',DEF_FIXED); STATE.objectifs=load('vfx3_objectifs',DEF_OBJ); STATE.ledger=load('vfx3_ledger',{}); STATE.calc=load('vfx3_calc',null); STATE.ads=load('vfx3_ads',{}); }
+function getSyncUrl(){ return load('vfx3_syncurl',''); }
+function getSyncKey(){ return load('vfx3_synckey',''); }
+function autoSync(){ return load('vfx3_autosync',false); }
+let _pushT=null, _syncing=false;
+function schedulePush(){ if(_syncing||!getSyncUrl()||!autoSync())return; clearTimeout(_pushT); _pushT=setTimeout(()=>{ syncPush(true).catch(()=>{}); },2500); }
+async function cloudPost(action,data){ const url=getSyncUrl(); if(!url)throw new Error('URL non configurée'); const res=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action,key:getSyncKey(),data})}); let j; try{ j=await res.json(); }catch(e){ throw new Error('Réponse invalide — vérifie le déploiement du script'); } if(!j.ok)throw new Error(j.error||'Erreur'); return j; }
+async function syncPush(silent){ if(!getSyncUrl()){ if(!silent)cloudMsg("Configure d'abord l'URL",red); return; } _syncing=true; try{ await cloudPost('save',gatherState()); try{localStorage.setItem('vfx3_lastsync',new Date().toISOString());}catch(e){} if(!silent)cloudMsg('Sauvegardé dans le cloud ✓',green); }catch(e){ if(!silent)cloudMsg('Échec : '+e.message,red); throw e; } finally{ _syncing=false; updateSyncStatus(); } }
+async function syncPull(){ try{ const j=await cloudPost('load',null); if(!j.data||!Object.keys(j.data).length){ cloudMsg("Aucune donnée dans le cloud pour l'instant.",amber); return; } applyState(j.data); reloadStateFromStorage(); try{localStorage.setItem('vfx3_lastsync',new Date().toISOString());}catch(e){} cloudMsg('Données chargées depuis le cloud ✓',green); renderChrome(); renderView(); }catch(e){ cloudMsg('Échec : '+e.message,red); } }
+function exportJSON(){ const blob=new Blob([JSON.stringify(gatherState(),null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='vaultfx-sauvegarde-'+new Date().toISOString().slice(0,10)+'.json'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); cloudMsg('Sauvegarde téléchargée ✓',green); }
+function importJSON(file){ const r=new FileReader(); r.onload=()=>{ try{ applyState(JSON.parse(r.result)); reloadStateFromStorage(); cloudMsg('Import réussi ✓',green); renderChrome(); renderView(); }catch(e){ cloudMsg('Fichier invalide',red); } }; r.readAsText(file); }
+function cloudMsg(t,c){ const el=document.getElementById('cloud_msg'); if(el){ el.textContent=t; el.style.color=c||'#8b7fa8'; } }
+function updateSyncStatus(){ const el=document.getElementById('cloud_status'); if(!el)return; const t=load('vfx3_lastsync',null); el.textContent=t?('Dernière synchro : '+new Date(t).toLocaleString('fr-FR')):'Jamais synchronisé sur cet appareil'; }
+
+function curMonth(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+const STATE={
+  nav:'journal',
+  month: load('vfx3_month', curMonth()),
+  settings: Object.assign({},DEF_SET, load('vfx3_settings',{})),
+  fixed: load('vfx3_fixed', DEF_FIXED),
+  objectifs: load('vfx3_objectifs', DEF_OBJ),
+  ledger: load('vfx3_ledger', {}),
+  weeks: [],
+  productsData: null, productsErr: null,
+  calc: load('vfx3_calc', null),
+  ads: load('vfx3_ads', {})
+};
+const DEF_CALC={prix:34.85,cout:5.29,livraison:0,autres:0,fraisPct:3.5,tva:20,cpa:12,ventes:100,fixe:null};
+function getCalc(){ const c=Object.assign({},DEF_CALC,STATE.calc||{}); if(c.fixe==null)c.fixe=fixedTotalGuess(); return c; }
+function fixedTotalGuess(){ try{ return (STATE.fixed||[]).reduce((a,f)=>a+(parseFloat(f.amount)||0),0); }catch(e){ return 0; } }
+
+// ---------- format ----------
+function num(x){ const n=parseFloat(x); return isNaN(n)?0:n; }
+function eur(n){ return '€'+new Intl.NumberFormat('fr-FR',{maximumFractionDigits:0}).format(Number(n)||0); }
+function eur2(n){ const v=Number(n)||0; return (v<0?'−€':'€')+new Intl.NumberFormat('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2}).format(Math.abs(v)); }
+function pctv(x){ return (x*100).toFixed(1).replace('.',',')+'%'; }
+function setTxt(id,t){ const el=document.getElementById(id); if(el)el.textContent=t; }
+function setCol(id,c){ const el=document.getElementById(id); if(el)el.style.color=c; }
+
+// ---------- Shopify (optionnel, pour import) ----------
+const HAS_COWORK=(typeof window!=='undefined')&&window.cowork&&typeof window.cowork.callMcpTool==='function';
+function getProxy(){ return load('vfx3_proxy',''); }
+function connMode(){ if(HAS_COWORK)return 'cowork'; if(getProxy())return 'proxy'; return 'off'; }
+async function mcp(tool,args){
+  if(HAS_COWORK){ const r=await window.cowork.callMcpTool(SHOP+'__'+tool,args||{}); if(r&&r.isError)throw new Error('MCP'); let raw=r&&r.structuredContent; if(!raw&&r&&r.content&&r.content[0]&&r.content[0].text)raw=JSON.parse(r.content[0].text); return raw; }
+  const p=getProxy(); if(p){ const res=await fetch(p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tool,args:args||{}})}); if(!res.ok)throw new Error('Proxy '+res.status); return await res.json(); }
+  throw new Error('Shopify non connecté');
+}
+
+// ---------- compute ----------
+function computeDay(e){
+  const s=STATE.settings, ca=num(e.ca), tva=s.tva/100;
+  const caHT=ca/(1+tva), cout=num(e.cout), frais=ca*(s.fraisPct/100), cmd=num(e.cmd), ads=num(e.ads);
+  const cpa=cmd?ads/cmd:0, cpar=caHT?ads/caHT:0, panier=cmd?ca/cmd:0;
+  const marge=caHT-cout-frais-ads, txm=caHT?marge/caHT:0, roas=ads?ca/ads:0;
+  return {ca,caHT,cout,frais,cmd,ads,cpa,cpar,panier,marge,txm,roas};
+}
+function buildWeeks(){
+  const [y,m]=STATE.month.split('-').map(Number); const dim=new Date(y,m,0).getDate();
+  const weeks=[]; let cur=[];
+  for(let d=1;d<=dim;d++){
+    const dateKey=STATE.month+'-'+String(d).padStart(2,'0'); const wd=new Date(y,m-1,d).getDay();
+    cur.push({d,dateKey,wd});
+    if(wd===0||d===dim){ weeks.push(cur); cur=[]; }
+  }
+  STATE.weeks=weeks;
+}
+function monthAgg(month){
+  const [y,m]=month.split('-').map(Number); const dim=new Date(y,m,0).getDate();
+  const A={ca:0,caHT:0,cout:0,frais:0,cmd:0,ads:0,marge:0};
+  for(let d=1;d<=dim;d++){ const e=STATE.ledger[month+'-'+String(d).padStart(2,'0')]; if(!e)continue; const r=computeDay(e); A.ca+=r.ca;A.caHT+=r.caHT;A.cout+=r.cout;A.frais+=r.frais;A.cmd+=r.cmd;A.ads+=r.ads;A.marge+=r.marge; }
+  return A;
+}
+function fixedTotal(){ return STATE.fixed.reduce((a,f)=>a+num(f.amount),0); }
+
+// ---------- nav ----------
+const NAV=[
+  {key:'dashboard',label:"Vue d'ensemble"},
+  {key:'journal',label:'Saisie journalière'},
+  {key:'resultat',label:'Compte de résultat'},
+  {key:'annuel',label:'Résultat annuel'},
+  {key:'calculateur',label:'Calculateur campagne'},
+  {key:'acquisition',label:'Acquisition (ads)'},
+  {key:'produits',label:'Produits & variantes'},
+  {key:'recap',label:'Récap dépenses'},
+  {key:'fixes',label:'Coûts fixes'},
+  {key:'synthese',label:'Synthèse & courbes'},
+  {key:'params',label:'Paramètres'},
+  {key:'cloud',label:'Sauvegarde & cloud'},
+  {key:'connexion',label:'Connexion Shopify'}
+];
+const TITLES={dashboard:"Vue d'ensemble",journal:'Saisie journalière',resultat:'Compte de résultat',annuel:'Résultat annuel',calculateur:'Calculateur de campagne',acquisition:'Acquisition — métriques ads',produits:'Produits & variantes',recap:'Récap des dépenses',fixes:'Coûts fixes du mois',synthese:'Synthèse & courbes',params:'Paramètres financiers',cloud:'Sauvegarde & synchro cloud',connexion:'Connexion Shopify'};
+
+function renderChrome(){
+  const nav=document.getElementById('nav');
+  nav.innerHTML=NAV.map(n=>{const on=STATE.nav===n.key;return `<a href="#" class="vf-navbtn" data-nav="${n.key}" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:11px;font-size:13.5px;font-weight:600;color:${on?'#ece7f7':'#9a8fb5'};background:${on?'rgba(167,139,250,0.14)':'transparent'};border:1px solid ${on?'rgba(167,139,250,0.2)':'transparent'};transition:all .16s;"><span style="width:7px;height:7px;border-radius:3px;background:${on?accent:'#4a4260'};box-shadow:${on?'0 0 8px '+accent:'none'};"></span>${n.label}</a>`;}).join('');
+  nav.querySelectorAll('[data-nav]').forEach(a=>a.onclick=e=>{e.preventDefault();go(a.dataset.nav);});
+  const mode=connMode();
+  const st=mode==='cowork'?['Cowork',green]:mode==='proxy'?['Proxy',green]:['Manuel',amber];
+  document.getElementById('sources').innerHTML=`<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);"><span style="width:8px;height:8px;border-radius:50%;background:${st[1]};box-shadow:0 0 8px ${st[1]};"></span><span style="font-size:12.5px;font-weight:600;color:#cfc6e6;">Shopify</span><span style="margin-left:auto;font-size:10.5px;color:#7a6f95;font-weight:600;">${st[0]}</span></div><div style="font-size:10.5px;color:#6f6588;padding:2px 4px;">Données saisies sauvegardées sur cet appareil.</div>`;
+  const [y,m]=STATE.month.split('-').map(Number);
+  document.getElementById('mLabel').textContent=MONTHS[m-1]+' '+y;
+  document.getElementById('viewTitle').textContent=TITLES[STATE.nav];
+  document.getElementById('viewSub').textContent=({dashboard:"Vue d'ensemble de l'année "+STATE.month.split('-')[0]+' — objectifs, marge, bénéfice, simulateur ROAS.',journal:'Entre ton CA TTC, coût produit, commandes, ATC, conv et ads — le reste se calcule.',resultat:'Compte de résultat du mois sélectionné.',annuel:'Les 12 mois : objectifs vs réel, marge et bénéfice net.',calculateur:'Teste la rentabilité d’un produit / une campagne avant de lancer, coûts fixes inclus.',acquisition:'Métriques pub en saisie manuelle (CPM, CPC, CTR, CPA, MER…) sans connecter Meta.',produits:'Meilleures ventes par produit et variante/couleur (Shopify).',recap:'Chaque poste + sa contribution au CA et au coût total.',fixes:'Base des charges fixes mensuelles (remboursements, apps, abonnements…).',synthese:'Totaux du mois et courbes.',params:'TVA, frais, impôt — pilotent tous les calculs.',cloud:'Sauvegarde tes données dans ton Google Sheet (gratuit) ou un fichier.',connexion:'Brancher Shopify (facultatif) pour pré-remplir le CA.'})[STATE.nav];
+  document.getElementById('importBtn').style.display=(STATE.nav==='journal')?'flex':'none';
+}
+function go(k){ STATE.nav=k; renderChrome(); renderView(); }
+
+// ---------- JOURNAL ----------
+const COLS=[['Date','l'],['N° début','in'],['N° fin','in'],['CA TTC','in'],['CA HT','c'],['Coût prod.','in'],['Frais paie.','c'],['Cmd','in'],['CPA','c'],['CPA/CA HT','c'],['ATC','in'],['Tx conv.','in'],['Panier','c'],['Ads','in'],['Marge','c'],['Tx marge','c'],['ROAS','c']];
+function journalView(){
+  buildWeeks();
+  let rowsHtml='';
+  STATE.weeks.forEach((wk,wi)=>{
+    wk.forEach(day=>{
+      const e=STATE.ledger[day.dateKey]||{}; const dd=String(day.d).padStart(2,'0');
+      const wend=day.wd===0?'wend':'';
+      rowsHtml+=`<tr class="${wend}">
+        <td><span class="vf-mono" style="color:${day.wd===0||day.wd===6?'#8b7fa8':'#cfc6e6'};">${dd} <span style="color:#6f6588;">${WD[day.wd]}</span></span></td>
+        <td><input type="text" data-d="${day.dateKey}" data-f="deb" value="${e.deb!=null?e.deb:''}" placeholder="—" style="width:60px;"></td>
+        <td><input type="text" data-d="${day.dateKey}" data-f="fin" value="${e.fin!=null?e.fin:''}" placeholder="—" style="width:60px;"></td>
+        <td><input type="number" step="any" inputmode="decimal" data-d="${day.dateKey}" data-f="ca" value="${e.ca!=null?e.ca:''}" placeholder="0"></td>
+        <td><span class="comp" id="c_${day.dateKey}_caHT"></span></td>
+        <td><input type="number" step="any" data-d="${day.dateKey}" data-f="cout" value="${e.cout!=null?e.cout:''}" placeholder="0"></td>
+        <td><span class="comp" id="c_${day.dateKey}_frais"></span></td>
+        <td><input type="number" step="1" data-d="${day.dateKey}" data-f="cmd" value="${e.cmd!=null?e.cmd:''}" placeholder="0" style="width:56px;"></td>
+        <td><span class="comp" id="c_${day.dateKey}_cpa"></span></td>
+        <td><span class="comp" id="c_${day.dateKey}_cpar"></span></td>
+        <td><input type="number" step="any" data-d="${day.dateKey}" data-f="atc" value="${e.atc!=null?e.atc:''}" placeholder="%" style="width:56px;"></td>
+        <td><input type="number" step="any" data-d="${day.dateKey}" data-f="conv" value="${e.conv!=null?e.conv:''}" placeholder="%" style="width:56px;"></td>
+        <td><span class="comp" id="c_${day.dateKey}_panier"></span></td>
+        <td><input type="number" step="any" data-d="${day.dateKey}" data-f="ads" value="${e.ads!=null?e.ads:''}" placeholder="0"></td>
+        <td><span class="comp" id="c_${day.dateKey}_marge"></span></td>
+        <td><span class="comp" id="c_${day.dateKey}_txm"></span></td>
+        <td><span class="comp" id="c_${day.dateKey}_roas"></span></td>
+      </tr>`;
+    });
+    rowsHtml+=`<tr class="wtot">
+      <td>Sem. ${wi+1}</td>
+      <td></td><td></td>
+      <td><span id="w_${wi}_ca"></span></td><td><span id="w_${wi}_caHT"></span></td>
+      <td><span id="w_${wi}_cout"></span></td><td><span id="w_${wi}_frais"></span></td>
+      <td><span id="w_${wi}_cmd"></span></td><td><span id="w_${wi}_cpa"></span></td><td><span id="w_${wi}_cpar"></span></td>
+      <td></td><td></td><td><span id="w_${wi}_panier"></span></td>
+      <td><span id="w_${wi}_ads"></span></td><td><span id="w_${wi}_marge"></span></td><td><span id="w_${wi}_txm"></span></td><td><span id="w_${wi}_roas"></span></td>
+    </tr>`;
+  });
+  rowsHtml+=`<tr class="mtot">
+      <td>TOTAL MOIS</td>
+      <td></td><td></td>
+      <td><span id="m_ca"></span></td><td><span id="m_caHT"></span></td>
+      <td><span id="m_cout"></span></td><td><span id="m_frais"></span></td>
+      <td><span id="m_cmd"></span></td><td><span id="m_cpa"></span></td><td><span id="m_cpar"></span></td>
+      <td></td><td></td><td><span id="m_panier"></span></td>
+      <td><span id="m_ads"></span></td><td><span id="m_marge"></span></td><td><span id="m_txm"></span></td><td><span id="m_roas"></span></td>
+    </tr>`;
+  const head=COLS.map(c=>`<th>${c[0]}</th>`).join('');
+  return `<div class="vf-view">
+    <div id="jkpi"></div>
+    <div class="vf-card" style="padding:0;overflow:hidden;">
+      <div style="overflow-x:auto;max-height:66vh;overflow-y:auto;"><table class="led"><thead><tr>${head}</tr></thead><tbody>${rowsHtml}</tbody></table></div>
+    </div>
+    <div style="font-size:11.5px;color:#8b7fa8;">Cases <span style="color:#b794ff;">violettes</span> = à remplir. Le reste (CA HT, frais, CPA, panier, marge, taux marge, ROAS) se calcule automatiquement. Tout est sauvegardé en direct.</div>
+  </div>`;
+}
+function recomputeJournal(){
+  const M={ca:0,caHT:0,cout:0,frais:0,cmd:0,ads:0,marge:0};
+  STATE.weeks.forEach((wk,wi)=>{
+    const W={ca:0,caHT:0,cout:0,frais:0,cmd:0,ads:0,marge:0};
+    wk.forEach(day=>{
+      const e=STATE.ledger[day.dateKey]; const has=e&&(e.ca!=null||e.cout!=null||e.ads!=null||e.cmd!=null);
+      const r=computeDay(e||{});
+      setTxt('c_'+day.dateKey+'_caHT', e&&e.ca!=null?eur2(r.caHT):'');
+      setTxt('c_'+day.dateKey+'_frais', e&&e.ca!=null?eur2(r.frais):'');
+      setTxt('c_'+day.dateKey+'_cpa', e&&e.ads!=null&&r.cmd?eur2(r.cpa):'');
+      setTxt('c_'+day.dateKey+'_cpar', e&&e.ads!=null&&r.caHT?pctv(r.cpar):'');
+      setTxt('c_'+day.dateKey+'_panier', e&&r.cmd?eur2(r.panier):'');
+      const mEl=document.getElementById('c_'+day.dateKey+'_marge'); if(mEl){ mEl.textContent=e&&e.ca!=null?eur2(r.marge):''; mEl.style.color=r.marge<0?red:'#cfc6e6'; }
+      setTxt('c_'+day.dateKey+'_txm', e&&e.ca!=null?pctv(r.txm):'');
+      const rEl=document.getElementById('c_'+day.dateKey+'_roas'); if(rEl){ rEl.textContent=e&&e.ads!=null&&r.ads?r.roas.toFixed(2).replace('.',',')+'x':''; rEl.style.color=r.roas>=STATE.settings.roasBE?green:r.roas>0?amber:'#cfc6e6'; }
+      W.ca+=r.ca;W.caHT+=r.caHT;W.cout+=r.cout;W.frais+=r.frais;W.cmd+=r.cmd;W.ads+=r.ads;W.marge+=r.marge;
+    });
+    setTxt('w_'+wi+'_ca',eur(W.ca));setTxt('w_'+wi+'_caHT',eur(W.caHT));setTxt('w_'+wi+'_cout',eur(W.cout));setTxt('w_'+wi+'_frais',eur(W.frais));
+    setTxt('w_'+wi+'_cmd',W.cmd||'');setTxt('w_'+wi+'_cpa',W.cmd?eur2(W.ads/W.cmd):'');setTxt('w_'+wi+'_cpar',W.caHT?pctv(W.ads/W.caHT):'');
+    setTxt('w_'+wi+'_panier',W.cmd?eur2(W.ca/W.cmd):'');setTxt('w_'+wi+'_ads',eur(W.ads));
+    const wm=document.getElementById('w_'+wi+'_marge'); if(wm){wm.textContent=eur(W.marge);wm.style.color=W.marge<0?red:'#ece7f7';}
+    setTxt('w_'+wi+'_txm',W.caHT?pctv(W.marge/W.caHT):'');setTxt('w_'+wi+'_roas',W.ads?(W.ca/W.ads).toFixed(2).replace('.',',')+'x':'');
+    for(const k in M)M[k]+=W[k];
+  });
+  setTxt('m_ca',eur(M.ca));setTxt('m_caHT',eur(M.caHT));setTxt('m_cout',eur(M.cout));setTxt('m_frais',eur(M.frais));
+  setTxt('m_cmd',M.cmd||'');setTxt('m_cpa',M.cmd?eur2(M.ads/M.cmd):'');setTxt('m_cpar',M.caHT?pctv(M.ads/M.caHT):'');
+  setTxt('m_panier',M.cmd?eur2(M.ca/M.cmd):'');setTxt('m_ads',eur(M.ads));
+  const mm=document.getElementById('m_marge'); if(mm){mm.textContent=eur(M.marge);mm.style.color=M.marge<0?red:'#fff';}
+  setTxt('m_txm',M.caHT?pctv(M.marge/M.caHT):'');setTxt('m_roas',M.ads?(M.ca/M.ads).toFixed(2).replace('.',',')+'x':'');
+  // kpi strip
+  const impot=M.caHT*(STATE.settings.impotPct/100); const benef=M.marge-fixedTotal()-impot;
+  const kpi=(l,v,c)=>`<div class="vf-card" style="padding:14px 16px;"><div style="font-size:11px;color:#9a8fb5;font-weight:700;text-transform:uppercase;">${l}</div><div class="vf-mono" style="font-size:21px;font-weight:800;color:${c};margin-top:4px;">${v}</div></div>`;
+  const el=document.getElementById('jkpi'); if(el) el.outerHTML=`<div id="jkpi" style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;">${kpi('CA TTC',eur(M.ca),'#ece7f7')}${kpi('CA HT',eur(M.caHT),'#ece7f7')}${kpi('Marge op.',eur(M.marge),M.marge<0?red:green)}${kpi('Taux marge',M.caHT?pctv(M.marge/M.caHT):'—',M.marge<0?red:green)}${kpi('ROAS',M.ads?(M.ca/M.ads).toFixed(2).replace('.',',')+'x':'—',accent)}${kpi('Bénéf. net',eur(benef),benef<0?red:green)}</div>`;
+}
+function bindJournal(){
+  document.querySelectorAll('table.led input').forEach(inp=>{
+    inp.addEventListener('input',()=>{
+      const d=inp.dataset.d, f=inp.dataset.f; const v=inp.value;
+      if(!STATE.ledger[d])STATE.ledger[d]={};
+      if(v==='')delete STATE.ledger[d][f]; else STATE.ledger[d][f]=(f==='deb'||f==='fin')?v:parseFloat(v);
+      if(Object.keys(STATE.ledger[d]).length===0)delete STATE.ledger[d];
+      save('vfx3_ledger',STATE.ledger);
+      recomputeJournal();
+    });
+  });
+}
+async function importShopify(){
+  const btn=document.getElementById('importBtn'); if(connMode()==='off'){ go('connexion'); return; }
+  const old=btn.innerHTML; btn.innerHTML='⏳ Import…'; btn.disabled=true;
+  try{
+    const [y,m]=STATE.month.split('-').map(Number); const dim=new Date(y,m,0).getDate();
+    const start=STATE.month+'-01', end=STATE.month+'-'+String(dim).padStart(2,'0');
+    const res=await mcp('run-analytics-query',{query:`FROM sales SHOW total_sales, orders TIMESERIES day SINCE ${start} UNTIL ${end}`});
+    const rows=(res&&res.rows)||[];
+    rows.forEach(r=>{ const day=String(r[0]).slice(0,10); const ca=num(r[1]), cmd=num(r[2]); if(ca>0||cmd>0){ if(!STATE.ledger[day])STATE.ledger[day]={}; STATE.ledger[day].ca=Math.round(ca*100)/100; STATE.ledger[day].cmd=cmd; } });
+    save('vfx3_ledger',STATE.ledger); renderView();
+    btn.innerHTML='✓ Importé'; setTimeout(()=>{btn.innerHTML=old;btn.disabled=false;},1500);
+  }catch(e){ btn.innerHTML='✕ Échec'; setTimeout(()=>{btn.innerHTML=old;btn.disabled=false;},1800); }
+}
+
+// ---------- RECAP ----------
+function recapView(){
+  const A=monthAgg(STATE.month); const impot=A.caHT*(STATE.settings.impotPct/100);
+  const posts=[{n:'Coût produit',v:A.cout,c:accent},{n:'Frais de paiement',v:A.frais,c:teal},{n:'Dépenses ads',v:A.ads,c:amber}]
+    .concat(STATE.fixed.filter(f=>num(f.amount)>0).map(f=>({n:f.name,v:num(f.amount),c:'#f472b6'})));
+  posts.push({n:'Impôt / cotisations',v:impot,c:'#60a5fa'});
+  const totalCost=posts.reduce((a,p)=>a+p.v,0);
+  const benef=A.ca - totalCost; // CA TTC - tous coûts (dont impôt)
+  const rowsH=posts.map(p=>`<tr><td style="text-align:left;"><span style="display:inline-flex;align-items:center;gap:8px;"><span style="width:9px;height:9px;border-radius:3px;background:${p.c};"></span>${p.n}</span></td><td class="vf-mono" style="text-align:right;">${eur2(p.v)}</td><td class="vf-mono" style="text-align:right;color:${amber};">${totalCost?pctv(p.v/totalCost):'—'}</td><td class="vf-mono" style="text-align:right;color:#8b7fa8;">${A.ca?pctv(p.v/A.ca):'—'}</td></tr>`).join('');
+  return `<div class="vf-view">
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+      ${miniCard('CA TTC',eur(A.ca),'#ece7f7')}${miniCard('Coûts totaux',eur(totalCost),red)}${miniCard('Bénéfice net',eur(benef),benef<0?red:green)}${miniCard('Marge nette',A.ca?pctv(benef/A.ca):'—',benef<0?red:green)}
+    </div>
+    <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:18px;align-items:start;margin-top:4px;">
+      <div class="vf-card">
+        <div style="font-size:15px;font-weight:700;margin-bottom:12px;">Répartition par poste de dépense</div>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <tr><th class="vf-th" style="text-align:left;padding-bottom:8px;">Poste</th><th class="vf-th" style="text-align:right;">Montant</th><th class="vf-th" style="text-align:right;">% coûts</th><th class="vf-th" style="text-align:right;">% du CA</th></tr>
+          ${rowsH}
+          <tr style="border-top:2px solid rgba(167,139,250,0.3);"><td style="text-align:left;font-weight:800;color:${accent};padding-top:8px;">Total coûts</td><td class="vf-mono" style="text-align:right;font-weight:800;padding-top:8px;">${eur2(totalCost)}</td><td style="text-align:right;padding-top:8px;">100%</td><td class="vf-mono" style="text-align:right;font-weight:700;padding-top:8px;">${A.ca?pctv(totalCost/A.ca):'—'}</td></tr>
+        </table>
+      </div>
+      <div class="vf-card"><div style="font-size:15px;font-weight:700;margin-bottom:8px;">Poids des postes</div><div style="height:250px;position:relative;"><canvas id="recapChart"></canvas></div></div>
+    </div>
+  </div>`;
+}
+function drawRecap(){
+  const c=document.getElementById('recapChart'); if(!c||!window.Chart)return;
+  const A=monthAgg(STATE.month); const impot=A.caHT*(STATE.settings.impotPct/100);
+  const posts=[['Coût produit',A.cout,accent],['Frais paiement',A.frais,teal],['Ads',A.ads,amber]].concat(STATE.fixed.filter(f=>num(f.amount)>0).map(f=>[f.name,num(f.amount),'#f472b6'])); posts.push(['Impôt',impot,'#60a5fa']);
+  const benef=A.ca-posts.reduce((a,p)=>a+p[1],0); if(benef>0)posts.push(['Bénéfice net',benef,green]);
+  if(window._rp)window._rp.destroy();
+  window._rp=new Chart(c,{type:'doughnut',data:{labels:posts.map(p=>p[0]),datasets:[{data:posts.map(p=>p[1]),backgroundColor:posts.map(p=>p[2]),borderColor:'rgba(9,6,15,0.6)',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'bottom',labels:{color:'#cfc6e6',font:{size:11},boxWidth:12,padding:8}},tooltip:{callbacks:{label:x=>x.label+': '+eur2(x.parsed)}}}}});
+}
+function miniCard(l,v,c){ return `<div class="vf-card" style="padding:15px 18px;"><div style="font-size:11px;color:#9a8fb5;font-weight:700;text-transform:uppercase;">${l}</div><div class="vf-mono" style="font-size:22px;font-weight:800;color:${c};margin-top:5px;">${v}</div></div>`; }
+
+// ---------- FIXES ----------
+function fixesView(){
+  const rows=STATE.fixed.map((f,i)=>`<div style="display:grid;grid-template-columns:1fr 160px 40px;gap:10px;align-items:center;">
+     <input class="vf-inp" data-fx="${i}" data-fk="name" value="${(f.name||'').replace(/"/g,'&quot;')}" placeholder="Nom du poste" style="text-align:left;font-family:inherit;">
+     <div style="position:relative;"><input class="vf-inp" data-fx="${i}" data-fk="amount" type="number" step="any" value="${f.amount!=null&&f.amount!==0?f.amount:''}" placeholder="0"><span style="position:absolute;right:11px;top:9px;font-size:12px;color:#6f6588;" class="vf-mono">€</span></div>
+     <button data-del="${i}" style="border:none;background:rgba(251,113,133,0.12);color:${red};border-radius:9px;height:36px;cursor:pointer;font-size:16px;">×</button>
+   </div>`).join('');
+  const tot=fixedTotal();
+  return `<div class="vf-view"><div class="vf-card" style="max-width:640px;">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px;"><div style="font-size:15px;font-weight:700;">Charges fixes mensuelles</div><div class="vf-mono" style="color:${accent};font-weight:700;">Total ${eur2(tot)}</div></div>
+    <div style="display:flex;flex-direction:column;gap:10px;">${rows}</div>
+    <button id="addFix" style="margin-top:14px;padding:9px 16px;border-radius:10px;border:1px dashed rgba(167,139,250,0.4);background:transparent;color:#d8b4fe;font-weight:600;font-size:13px;cursor:pointer;">+ Ajouter un poste</button>
+    <div style="margin-top:16px;font-size:11.5px;color:#8b7fa8;line-height:1.6;">Ces charges (remboursements, apps, abonnements, logiciels, salaires…) sont déduites dans le <a href="#" data-nav="recap">Récap</a> et la <a href="#" data-nav="synthese">Synthèse</a> pour calculer ton bénéfice net réel.</div>
+  </div></div>`;
+}
+function bindFixes(){
+  document.querySelectorAll('[data-fx]').forEach(inp=>inp.addEventListener('input',()=>{const i=+inp.dataset.fx,k=inp.dataset.fk;STATE.fixed[i][k]=k==='amount'?(parseFloat(inp.value)||0):inp.value;save('vfx3_fixed',STATE.fixed);}));
+  document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{STATE.fixed.splice(+b.dataset.del,1);save('vfx3_fixed',STATE.fixed);renderView();});
+  const add=document.getElementById('addFix'); if(add)add.onclick=()=>{STATE.fixed.push({name:'',amount:0});save('vfx3_fixed',STATE.fixed);renderView();};
+}
+
+// ---------- SYNTHESE ----------
+function syntheseView(){
+  const A=monthAgg(STATE.month); const impot=A.caHT*(STATE.settings.impotPct/100); const benef=A.marge-fixedTotal()-impot;
+  return `<div class="vf-view">
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;">
+      ${miniCard('CA TTC',eur(A.ca),'#ece7f7')}${miniCard('CA HT',eur(A.caHT),'#ece7f7')}${miniCard('Commandes',A.cmd||'—','#ece7f7')}${miniCard('Marge op.',eur(A.marge),A.marge<0?red:green)}${miniCard('Taux marge',A.caHT?pctv(A.marge/A.caHT):'—',A.marge<0?red:green)}${miniCard('Bénéf. net',eur(benef),benef<0?red:green)}
+    </div>
+    <div class="vf-card"><div style="font-size:15px;font-weight:700;margin-bottom:8px;">CA & marge — jour par jour</div><div style="height:270px;position:relative;"><canvas id="synChart"></canvas></div></div>
+  </div>`;
+}
+function drawSyn(){
+  const c=document.getElementById('synChart'); if(!c||!window.Chart)return;
+  const [y,m]=STATE.month.split('-').map(Number); const dim=new Date(y,m,0).getDate();
+  const labels=[],ca=[],marge=[];
+  for(let d=1;d<=dim;d++){ const e=STATE.ledger[STATE.month+'-'+String(d).padStart(2,'0')]; const r=computeDay(e||{}); labels.push(String(d)); ca.push(r.ca); marge.push(r.marge); }
+  if(window._sy)window._sy.destroy();
+  window._sy=new Chart(c,{data:{labels,datasets:[{type:'bar',label:'CA TTC',data:ca,backgroundColor:'rgba(183,148,255,0.7)',borderRadius:4},{type:'line',label:'Marge',data:marge,borderColor:green,borderWidth:2,pointRadius:0,tension:.3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#cfc6e6',boxWidth:12}},tooltip:{callbacks:{label:x=>x.dataset.label+': '+eur2(x.parsed.y)}}},scales:{x:{grid:{display:false},ticks:{color:'#6f6588',font:{size:9}}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#6f6588',font:{size:10},callback:v=>'€'+new Intl.NumberFormat('fr-FR',{notation:'compact'}).format(v)}}}}});
+}
+
+// ---------- PARAMS ----------
+function paramsView(){
+  const s=STATE.settings;
+  const fld=(k,l,ph,suf)=>`<div style="display:flex;flex-direction:column;gap:5px;"><label style="font-size:11.5px;font-weight:600;color:#9a8fb5;">${l}</label><div style="position:relative;"><input class="vf-inp" data-set="${k}" type="number" step="any" value="${s[k]}" placeholder="${ph}"><span style="position:absolute;right:11px;top:9px;font-size:12px;color:#6f6588;" class="vf-mono">${suf}</span></div></div>`;
+  return `<div class="vf-view"><div class="vf-card" style="max-width:560px;">
+    <div style="font-size:15px;font-weight:700;margin-bottom:14px;">Paramètres de calcul</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">${fld('tva','TVA','20','%')}${fld('fraisPct','Frais de paiement','3.5','%')}${fld('impotPct','Impôt / cotisations (sur CA HT)','15','%')}${fld('roasBE','ROAS break-even','1.65','x')}</div>
+    <button id="saveParams" style="margin-top:16px;padding:9px 18px;border-radius:10px;border:none;background:linear-gradient(145deg,${accent},${accent2});color:#0a0710;font-weight:700;font-size:13px;cursor:pointer;">Enregistrer</button>
+    <div style="margin-top:14px;font-size:11.5px;color:#8b7fa8;line-height:1.6;">CA HT = CA TTC ÷ (1 + TVA). Frais de paiement = CA TTC × taux. Marge = CA HT − coût produit − frais − ads. ROAS = CA TTC ÷ ads.</div>
+  </div></div>`;
+}
+function bindParams(){ const b=document.getElementById('saveParams'); if(!b)return; b.onclick=()=>{document.querySelectorAll('[data-set]').forEach(i=>STATE.settings[i.dataset.set]=parseFloat(i.value)||0);save('vfx3_settings',STATE.settings);go('journal');}; }
+
+// ---------- CONNEXION ----------
+function connexionView(){
+  const mode=connMode();
+  const badge=(t,c)=>`<span style="display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:9px;background:${c}22;border:1px solid ${c}55;color:${c};font-size:12.5px;font-weight:700;"><span style="width:8px;height:8px;border-radius:50%;background:${c};box-shadow:0 0 8px ${c};"></span>${t}</span>`;
+  const box=mode==='cowork'?badge('Connecté via Cowork',green):mode==='proxy'?badge('Connecté via proxy',green):badge('Non connecté — saisie manuelle',amber);
+  return `<div class="vf-view"><div class="vf-card" style="max-width:720px;">
+    <div style="font-size:16px;font-weight:800;margin-bottom:4px;">Connexion Shopify (facultatif)</div>
+    <div style="font-size:12.5px;color:#8b7fa8;margin-bottom:16px;">Le cockpit fonctionne 100% en saisie manuelle. Shopify sert juste à <b>pré-remplir le CA et les commandes</b> du mois (bouton « Importer CA Shopify »).</div>
+    <div style="padding:14px 16px;border-radius:14px;background:rgba(255,255,255,0.03);border:1px solid rgba(167,139,250,0.14);margin-bottom:16px;">${box}</div>
+    ${mode==='cowork'?`<div style="font-size:13px;color:#cfc6e6;line-height:1.7;">Dans Claude/Cowork, l'import est déjà dispo. Clique « Importer CA Shopify » dans la Saisie journalière.</div>`:`
+    <div style="font-size:11.5px;font-weight:700;color:#7a6f95;text-transform:uppercase;margin-bottom:10px;">Hors Cowork — via backend</div>
+    <div style="display:flex;flex-direction:column;gap:5px;"><label style="font-size:12px;font-weight:600;color:#9a8fb5;">URL du proxy backend</label><input class="vf-inp" id="cx_proxy" placeholder="https://ton-projet.vercel.app/api/shopify" value="${getProxy()}"></div>
+    <div style="display:flex;gap:10px;margin-top:14px;align-items:center;"><button id="cx_save" style="padding:9px 18px;border-radius:10px;border:none;background:linear-gradient(145deg,${accent},${accent2});color:#0a0710;font-weight:700;font-size:13px;cursor:pointer;">Connecter</button><span id="cx_msg" style="font-size:12px;color:#8b7fa8;"></span></div>
+    <div style="margin-top:16px;padding:12px 14px;border-radius:12px;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.25);font-size:12px;color:#fbe08a;line-height:1.6;">⚠️ Ne colle jamais ton token Shopify ici. Il reste côté serveur (proxy). Voir le guide fourni <span class="vf-mono">CONNEXION-Shopify-guide.md</span>.</div>`}
+  </div></div>`;
+}
+function bindConnexion(){ const b=document.getElementById('cx_save'); if(!b)return; b.onclick=()=>{const p=(document.getElementById('cx_proxy').value||'').trim();save('vfx3_proxy',p);const m=document.getElementById('cx_msg');if(m){m.textContent=p?'Enregistré.':'Retiré.';m.style.color=green;}renderChrome();}; }
+
+// ---------- annual aggregation ----------
+function annualData(){
+  const y=parseInt(STATE.month.split('-')[0]); const rows=[];
+  const T={ca:0,caHT:0,cout:0,frais:0,cmd:0,ads:0,marge:0,benef:0,obj:0,impot:0,fixed:0};
+  for(let m=0;m<12;m++){
+    const key=y+'-'+String(m+1).padStart(2,'0'); const A=monthAgg(key);
+    const active=A.ca>0; const impot=A.caHT*(STATE.settings.impotPct/100); const fixed=active?fixedTotal():0;
+    const benef=A.marge-fixed-impot; const obj=num(STATE.objectifs[m]);
+    const r={m,ca:A.ca,caHT:A.caHT,cout:A.cout,frais:A.frais,cmd:A.cmd,ads:A.ads,marge:A.marge,impot,fixed,benef,obj,att:obj?A.ca/obj:0,roas:A.ads?A.ca/A.ads:0,txm:A.caHT?A.marge/A.caHT:0};
+    rows.push(r); T.ca+=r.ca;T.caHT+=r.caHT;T.cout+=r.cout;T.frais+=r.frais;T.cmd+=r.cmd;T.ads+=r.ads;T.marge+=r.marge;T.benef+=r.benef;T.obj+=r.obj;T.impot+=impot;T.fixed+=fixed;
+  }
+  return {y,rows,T};
+}
+
+// ---------- DASHBOARD (vue d'ensemble annuelle) ----------
+function dashboardView(){
+  const {y,T}=annualData();
+  const txm=T.caHT?T.marge/T.caHT:0, roas=T.ads?T.ca/T.ads:0, att=T.obj?T.ca/T.obj:0;
+  return `<div class="vf-view">
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;">
+      ${miniCard('CA TTC '+y,eur(T.ca),'#ece7f7')}${miniCard('CA HT',eur(T.caHT),'#ece7f7')}${miniCard('Marge op.',eur(T.marge),T.marge<0?red:green)}${miniCard('Taux marge',pctv(txm),T.marge<0?red:green)}${miniCard('ROAS',T.ads?roas.toFixed(2).replace('.',',')+'x':'—',accent)}${miniCard('Bénéf. net',eur(T.benef),T.benef<0?red:green)}
+    </div>
+    <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:18px;align-items:start;">
+      <div class="vf-card"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;"><div style="font-size:15px;font-weight:700;">CA réel vs objectif · ${y}</div><div style="font-size:12px;color:#8b7fa8;">Atteinte annuelle <span class="vf-mono" style="color:${att>=1?green:amber};">${T.obj?pctv(att):'—'}</span></div></div><div style="height:250px;position:relative;"><canvas id="dashChart"></canvas></div></div>
+      <div class="vf-card"><div style="font-size:15px;font-weight:700;margin-bottom:8px;">Bénéfice net mensuel</div><div style="height:250px;position:relative;"><canvas id="dashBenef"></canvas></div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start;">
+      ${pnlMiniCard()}
+      ${efficiencyCard()}
+    </div>
+  </div>`;
+}
+function pnlMiniCard(){
+  const {y,T}=annualData();
+  const line=(l,v,c,strong)=>`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.04);${strong?'border-top:1px solid rgba(167,139,250,0.2);margin-top:2px;':''}"><span style="font-size:12.5px;font-weight:${strong?700:500};color:${strong?c:'#cfc6e6'};">${l}</span><span class="vf-mono" style="font-size:13px;font-weight:${strong?800:600};color:${c};">${eur(v)}</span></div>`;
+  return `<div class="vf-card"><div style="font-size:15px;font-weight:700;margin-bottom:10px;">Compte de résultat ${y} (synthèse)</div>
+    ${line('CA TTC',T.ca,'#ece7f7')}${line('CA HT',T.caHT,'#8b7fa8')}
+    ${line('− Coût produit',-T.cout,red)}${line('− Frais de paiement',-T.frais,red)}${line('− Dépenses ads',-T.ads,red)}
+    ${line('= Marge opérationnelle',T.marge,T.marge<0?red:green,true)}
+    ${line('− Charges fixes',-T.fixed,red)}${line('− Impôt / cotisations',-T.impot,red)}
+    ${line('= Bénéfice net',T.benef,T.benef<0?red:green,true)}</div>`;
+}
+function efficiencyCard(){
+  const {T}=annualData();
+  const mer=T.ads?T.ca/T.ads:0, cpa=T.cmd?T.ads/T.cmd:0, cpc=0;
+  const coutCmd=T.cmd?(T.cout+T.frais+T.ads)/T.cmd:0, partPub=T.ca?T.ads/T.ca:0, contrib=T.ca?T.marge/T.ca:0, panier=T.cmd?T.ca/T.cmd:0;
+  const st=(l,v,c,sub)=>`<div style="padding:12px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(167,139,250,0.1);"><div style="font-size:10.5px;color:#9a8fb5;font-weight:700;text-transform:uppercase;">${l}</div><div class="vf-mono" style="font-size:18px;font-weight:800;color:${c};margin-top:3px;">${v}</div>${sub?`<div style="font-size:10px;color:#6f6588;margin-top:2px;">${sub}</div>`:''}</div>`;
+  return `<div class="vf-card"><div style="font-size:15px;font-weight:700;margin-bottom:10px;">Efficacité & acquisition</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+      ${st('MER',T.ads?mer.toFixed(2).replace('.',',')+'x':'—',accent,'CA / pub')}
+      ${st('CPA moyen',cpa?eur2(cpa):'—',amber,'pub / commande')}
+      ${st('Coût / commande',coutCmd?eur2(coutCmd):'—','#f472b6','tous coûts var.')}
+      ${st('Part pub du CA',T.ads?pctv(partPub):'—',partPub>0.3?red:amber,'ad ratio')}
+      ${st('Marge contrib.',pctv(contrib),contrib<0?red:green,'avant fixes')}
+      ${st('Panier moyen',panier?eur2(panier):'—','#ece7f7','AOV')}
+    </div></div>`;
+}
+
+// ---------- ROAS break-even simulator ----------
+function observedCogsRate(){ const {T}=annualData(); return T.ca>0?(T.cout/T.ca):0.30; }
+function simCogsRate(){ const s=STATE.settings; return (s.simCogsPct!=null?s.simCogsPct/100:observedCogsRate()); }
+function simRoas(t, coutRate){ const tva=STATE.settings.tva/100, fraisFrac=STATE.settings.fraisPct/100; const caHT_f=1/(1+tva); const ads_f=caHT_f*(1-t)-coutRate-fraisFrac; return ads_f>0?1/ads_f:null; }
+function simulatorCard(){
+  const rate=simCogsRate(); const cur=simCurRoas();
+  const rows=[0,10,20,30,40].map(t=>{
+    const be=t===0;
+    return `<tr style="${be?'background:rgba(251,191,36,0.08);':''}">
+      <td style="text-align:left;font-weight:${be?800:600};color:${be?amber:'#cfc6e6'};">${be?'Break-even (0%)':t+'% de marge'}</td>
+      <td class="vf-mono" id="sim_r_${t}" style="text-align:right;font-weight:800;font-size:15px;color:${be?amber:accent};"></td>
+    </tr>`;
+  }).join('');
+  return `<div class="vf-card">
+    <div style="font-size:15px;font-weight:700;margin-bottom:4px;">Simulateur ROAS cible</div>
+    <div style="font-size:11.5px;color:#8b7fa8;margin-bottom:12px;">ROAS minimum à tenir pour chaque niveau de marge (sur CA HT).</div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+      <label style="font-size:12px;color:#9a8fb5;font-weight:600;flex:1;">Coût produit (% du CA)</label>
+      <div style="position:relative;width:110px;"><input class="vf-inp" id="sim_cogs" type="number" step="any" value="${(rate*100).toFixed(1)}" style="text-align:right;"><span style="position:absolute;right:10px;top:9px;font-size:12px;color:#6f6588;" class="vf-mono">%</span></div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <tr><th class="vf-th" style="text-align:left;padding-bottom:6px;">Objectif</th><th class="vf-th" style="text-align:right;">ROAS cible</th></tr>
+      ${rows}
+    </table>
+    <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;font-size:12px;">
+      <span style="color:#8b7fa8;">ROAS réel ${STATE.month.split('-')[0]}</span>
+      <span class="vf-mono" style="color:${cur&&cur>=(simRoas(0,rate)||99)?green:amber};font-weight:700;">${cur?cur.toFixed(2).replace('.',',')+'x':'—'}</span>
+    </div>
+    <div style="margin-top:8px;font-size:11px;color:#6f6588;line-height:1.5;">TVA ${STATE.settings.tva}% · frais paiement ${STATE.settings.fraisPct}%. Base : CA HT − coût produit − frais − ads.</div>
+  </div>`;
+}
+function simCurRoas(){ const {T}=annualData(); return T.ads?T.ca/T.ads:0; }
+function refreshSim(){
+  const inp=document.getElementById('sim_cogs'); if(!inp)return;
+  const rate=(parseFloat(inp.value)||0)/100;
+  STATE.settings.simCogsPct=(parseFloat(inp.value)||0); save('vfx3_settings',STATE.settings);
+  [0,10,20,30,40].forEach(t=>{ const r=simRoas(t/100,rate); const el=document.getElementById('sim_r_'+t); if(el) el.textContent=r?r.toFixed(2).replace('.',',')+'x':'impossible'; });
+}
+function bindSim(){ const inp=document.getElementById('sim_cogs'); if(inp) inp.addEventListener('input',refreshSim); refreshSim(); }
+function drawDash(){
+  const {rows}=annualData();
+  const c=document.getElementById('dashChart');
+  if(c&&window.Chart){ if(window._dc)window._dc.destroy();
+    window._dc=new Chart(c,{data:{labels:MONTHS.map(m=>m.slice(0,3)),datasets:[
+      {type:'bar',label:'CA réel',data:rows.map(r=>r.ca),backgroundColor:'rgba(183,148,255,0.75)',borderRadius:5,order:2},
+      {type:'line',label:'Objectif',data:rows.map(r=>r.obj),borderColor:green,borderWidth:2,pointRadius:0,tension:.3,order:1}
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#cfc6e6',boxWidth:12}},tooltip:{callbacks:{label:x=>x.dataset.label+': '+eur(x.parsed.y)}}},scales:{x:{grid:{display:false},ticks:{color:'#6f6588',font:{size:10}}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#6f6588',font:{size:10},callback:v=>'€'+new Intl.NumberFormat('fr-FR',{notation:'compact'}).format(v)}}}}}); }
+  const b=document.getElementById('dashBenef');
+  if(b&&window.Chart){ if(window._db)window._db.destroy();
+    window._db=new Chart(b,{type:'bar',data:{labels:MONTHS.map(m=>m.slice(0,3)),datasets:[{label:'Bénéfice net',data:rows.map(r=>r.benef),backgroundColor:rows.map(r=>r.benef<0?'rgba(251,113,133,0.7)':'rgba(52,211,153,0.7)'),borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:x=>eur(x.parsed.y)}}},scales:{x:{grid:{display:false},ticks:{color:'#6f6588',font:{size:10}}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#6f6588',font:{size:10},callback:v=>'€'+new Intl.NumberFormat('fr-FR',{notation:'compact'}).format(v)}}}}}); }
+}
+
+// ---------- PRODUITS & VARIANTES ----------
+async function fetchProducts(){
+  if(connMode()==='off'){ STATE.productsData=DEMO_VARIANTS.slice(); STATE.productsErr='demo'; renderView(); return; }
+  try{
+    const res=await mcp('run-analytics-query',{query:`FROM sales SHOW net_sales, gross_sales, orders GROUP BY product_title, product_variant_title ORDER BY gross_sales DESC LIMIT 20 SINCE ${STATE.month.split('-')[0]}-01-01 UNTIL today`});
+    const rows=(res&&res.rows)||[];
+    STATE.productsData=rows.map(r=>({p:r[0]||'(sans titre)',v:r[1]||'—',net:num(r[2]),gross:num(r[3]),ord:num(r[4])})).filter(x=>x.gross>0);
+    STATE.productsErr=null; renderView();
+  }catch(e){ STATE.productsErr=e.message||'erreur'; STATE.productsData=DEMO_VARIANTS.slice(); renderView(); }
+}
+function productsView(){
+  if(!STATE.productsData){ return `<div class="vf-view"><div class="vf-card" style="display:flex;align-items:center;justify-content:center;gap:12px;padding:60px;color:#9a8fb5;"><span style="width:16px;height:16px;border:2px solid rgba(167,139,250,0.25);border-top-color:#b794ff;border-radius:50%;display:inline-block;animation:spin .7s linear infinite;"></span> Chargement des ventes par variante…</div></div>`; }
+  const y=STATE.month.split('-')[0];
+  const data=STATE.productsData.slice().sort((a,b)=>b.gross-a.gross);
+  const totG=data.reduce((a,x)=>a+x.gross,0), totO=data.reduce((a,x)=>a+x.ord,0);
+  const top=data.slice(0,10);
+  const clr=(v)=>{ const s=(v||'').toLowerCase(); if(s.includes('mixte'))return accent; if(s.includes('volumin'))return amber; if(s.includes('naturel'))return teal; if(s.includes('mystère')||s.includes('mystere'))return '#f472b6'; return '#60a5fa'; };
+  const body=data.map(x=>`<tr><td style="text-align:left;color:#cfc6e6;font-size:12.5px;">${x.p}</td><td style="text-align:left;"><span style="display:inline-flex;align-items:center;gap:7px;font-weight:600;"><span style="width:9px;height:9px;border-radius:3px;background:${clr(x.v)};"></span>${x.v}</span></td><td class="vf-mono" style="text-align:right;font-weight:700;">${eur(x.gross)}</td><td class="vf-mono" style="text-align:right;color:#8b7fa8;">${x.ord}</td><td class="vf-mono" style="text-align:right;color:${amber};">${totG?pctv(x.gross/totG):'—'}</td></tr>`).join('');
+  const note=STATE.productsErr==='demo'?`<div style="padding:10px 14px;border-radius:12px;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.25);color:#fbe08a;font-size:12px;margin-bottom:4px;">Exemple (non connecté) — connecte Shopify pour tes vraies ventes. <a href="#" data-nav="connexion" style="color:#fbe08a;text-decoration:underline;">Connecter →</a></div>`:'';
+  return `<div class="vf-view">
+    ${note}
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
+      ${miniCard('Meilleure variante',data[0]?data[0].v:'—',accent)}${miniCard('CA brut cumulé',eur(totG),'#ece7f7')}${miniCard('Commandes',totO||'—','#ece7f7')}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1.15fr;gap:18px;align-items:start;">
+      <div class="vf-card"><div style="font-size:15px;font-weight:700;margin-bottom:8px;">Top variantes / couleurs</div><div style="height:300px;position:relative;"><canvas id="prodChart"></canvas></div></div>
+      <div class="vf-card"><div style="font-size:15px;font-weight:700;margin-bottom:12px;">Détail des ventes ${y}</div>
+        <table style="width:100%;border-collapse:collapse;font-size:12.5px;"><tr><th class="vf-th" style="text-align:left;">Produit</th><th class="vf-th" style="text-align:left;">Variante</th><th class="vf-th" style="text-align:right;">CA brut</th><th class="vf-th" style="text-align:right;">Cmd</th><th class="vf-th" style="text-align:right;">% CA</th></tr>${body}</table>
+      </div>
+    </div>
+  </div>`;
+}
+function drawProducts(){
+  const c=document.getElementById('prodChart'); if(!c||!window.Chart||!STATE.productsData)return;
+  const data=STATE.productsData.slice().sort((a,b)=>b.gross-a.gross).slice(0,10);
+  const clr=(v)=>{ const s=(v||'').toLowerCase(); if(s.includes('mixte'))return 'rgba(183,148,255,0.85)'; if(s.includes('volumin'))return 'rgba(251,191,36,0.85)'; if(s.includes('naturel'))return 'rgba(94,234,212,0.85)'; if(s.includes('mystère')||s.includes('mystere'))return 'rgba(244,114,182,0.85)'; return 'rgba(96,165,250,0.8)'; };
+  if(window._pd)window._pd.destroy();
+  window._pd=new Chart(c,{type:'bar',data:{labels:data.map(x=>x.v.length>22?x.v.slice(0,22)+'…':x.v),datasets:[{label:'CA brut',data:data.map(x=>x.gross),backgroundColor:data.map(x=>clr(x.v)),borderRadius:4}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:x=>eur(x.parsed.x)}}},scales:{x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#6f6588',font:{size:10},callback:v=>'€'+new Intl.NumberFormat('fr-FR',{notation:'compact'}).format(v)}},y:{grid:{display:false},ticks:{color:'#cfc6e6',font:{size:11}}}}}});
+}
+
+// ---------- COMPTE DE RESULTAT (mensuel) ----------
+function resultatView(){
+  const A=monthAgg(STATE.month); const s=STATE.settings; const impot=A.caHT*(s.impotPct/100); const fixed=fixedTotal();
+  const [yy,mm]=STATE.month.split('-').map(Number);
+  const items=[{l:'CA HT',v:A.caHT,k:'in'},{l:'Coût produit',v:-A.cout,k:'out'},{l:'Frais de paiement',v:-A.frais,k:'out'},{l:'Dépenses ads',v:-A.ads,k:'out'},{l:'Charges fixes',v:-fixed,k:'out'}].filter(r=>r.k==='in'||Math.abs(r.v)>0.001);
+  const maxMag=Math.max(A.caHT,1);
+  const bars=items.map(p=>{const w=(Math.abs(p.v)/maxMag*100).toFixed(1)+'%';return `<div style="display:grid;grid-template-columns:160px 1fr 120px;align-items:center;gap:14px;"><span style="font-size:12.5px;font-weight:600;color:${p.k==='in'?'#ece7f7':'#cfc6e6'};">${p.l}</span><div style="height:10px;border-radius:6px;background:rgba(255,255,255,0.05);overflow:hidden;"><div style="height:100%;width:${w};border-radius:6px;background:${p.k==='in'?'linear-gradient(90deg,'+accent+','+accent2+')':'rgba(251,113,133,0.6)'};"></div></div><span class="vf-mono" style="font-size:13px;font-weight:700;text-align:right;color:${p.k==='in'?'#d8b4fe':red};">${eur2(p.v)}</span></div>`;}).join('');
+  const resAvant=A.marge-fixed; const benef=resAvant-impot;
+  const line=(l,v,c,bold)=>`<div style="display:grid;grid-template-columns:160px 1fr 120px;align-items:center;gap:14px;padding-top:10px;margin-top:2px;border-top:1px solid rgba(255,255,255,0.07);"><span style="font-size:12.5px;font-weight:${bold?800:700};color:${c};">${l}</span><div></div><span class="vf-mono" style="font-size:13px;font-weight:${bold?800:700};text-align:right;color:${c};">${eur2(v)}</span></div>`;
+  return `<div class="vf-view">
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+      ${miniCard('CA TTC — '+MONTHS[mm-1],eur(A.ca),'#ece7f7')}${miniCard('Marge op.',eur(A.marge),A.marge<0?red:green)}${miniCard('Bénéfice net',eur(benef),benef<0?red:green)}${miniCard('Taux marge nette',A.ca?pctv(benef/A.ca):'—',benef<0?red:green)}
+    </div>
+    <div class="vf-card" style="max-width:760px;">
+      <div style="font-size:15px;font-weight:700;margin-bottom:16px;">Compte de résultat — ${MONTHS[mm-1]} ${yy}</div>
+      <div style="display:flex;flex-direction:column;gap:11px;">${bars}${line('Marge opérationnelle',A.marge,A.marge<0?red:green)}${line('Résultat avant impôt',resAvant,resAvant<0?red:'#d8b4fe')}${line('Impôt / cotisations ('+s.impotPct+'%)',-impot,red)}${line('Bénéfice net',benef,benef<0?red:green,true)}</div>
+    </div>
+  </div>`;
+}
+
+// ---------- RESULTAT ANNUEL ----------
+function annuelView(){
+  const {y,rows,T}=annualData();
+  const head=`<tr><th style="text-align:left;" class="vf-th">Mois</th><th class="vf-th" style="text-align:right;">Objectif</th><th class="vf-th" style="text-align:right;">CA réel</th><th class="vf-th" style="text-align:right;">Atteinte</th><th class="vf-th" style="text-align:right;">Marge</th><th class="vf-th" style="text-align:right;">Bénéf. net</th><th class="vf-th" style="text-align:right;">ROAS</th></tr>`;
+  const body=rows.map(r=>`<tr><td style="font-weight:600;color:#ece7f7;">${MONTHS[r.m]}</td>
+    <td style="text-align:right;"><input class="vf-inp" data-obj="${r.m}" type="number" step="any" value="${r.obj||''}" placeholder="0" style="width:96px;text-align:right;padding:5px 8px;font-size:12px;"></td>
+    <td class="vf-mono" style="text-align:right;font-weight:700;">${eur(r.ca)}</td>
+    <td class="vf-mono" style="text-align:right;color:${r.att>=1?green:r.att>=0.5?amber:'#8b7fa8'};">${r.obj?pctv(r.att):'—'}</td>
+    <td class="vf-mono" style="text-align:right;color:${r.marge<0?red:green};">${eur(r.marge)}</td>
+    <td class="vf-mono" style="text-align:right;color:${r.benef<0?red:green};">${eur(r.benef)}</td>
+    <td class="vf-mono" style="text-align:right;color:#cfc6e6;">${r.roas?r.roas.toFixed(2).replace('.',','):'—'}</td></tr>`).join('');
+  const txm=T.caHT?T.marge/T.caHT:0;
+  const tot=`<tr style="border-top:2px solid rgba(167,139,250,0.3);"><td style="font-weight:800;color:${accent};padding-top:8px;">Total ${y}</td><td class="vf-mono" style="text-align:right;font-weight:700;color:#8b7fa8;padding-top:8px;">${eur(T.obj)}</td><td class="vf-mono" style="text-align:right;font-weight:800;padding-top:8px;">${eur(T.ca)}</td><td class="vf-mono" style="text-align:right;color:${T.ca>=T.obj?green:amber};padding-top:8px;">${T.obj?pctv(T.ca/T.obj):'—'}</td><td class="vf-mono" style="text-align:right;font-weight:700;color:${T.marge<0?red:green};padding-top:8px;">${eur(T.marge)}</td><td class="vf-mono" style="text-align:right;font-weight:800;color:${T.benef<0?red:green};padding-top:8px;">${eur(T.benef)}</td><td></td></tr>`;
+  return `<div class="vf-view">
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+      ${miniCard('CA réel '+y,eur(T.ca),'#ece7f7')}${miniCard('Objectif '+y,eur(T.obj),'#8b7fa8')}${miniCard('Marge annuelle',eur(T.marge),T.marge<0?red:green)}${miniCard('Bénéfice net',eur(T.benef),T.benef<0?red:green)}
+    </div>
+    <div class="vf-card">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px;"><div style="font-size:15px;font-weight:700;">Objectifs vs réel — ${y}</div><div style="font-size:11.5px;color:#8b7fa8;">Objectifs modifiables · marge nette annuelle ${pctv(txm)}</div></div>
+      <div style="height:230px;position:relative;margin-bottom:16px;"><canvas id="annChart"></canvas></div>
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px;">${head}${body}${tot}</table>
+    </div>
+  </div>`;
+}
+function drawAnn(){ const c=document.getElementById('annChart'); if(!c||!window.Chart)return; const {rows}=annualData();
+  if(window._an)window._an.destroy();
+  window._an=new Chart(c,{data:{labels:MONTHS.map(m=>m.slice(0,3)),datasets:[
+    {type:'bar',label:'CA réel',data:rows.map(r=>r.ca),backgroundColor:'rgba(183,148,255,0.75)',borderRadius:5,order:2},
+    {type:'line',label:'Objectif',data:rows.map(r=>r.obj),borderColor:green,borderWidth:2,pointRadius:0,tension:.3,order:1},
+    {type:'line',label:'Bénéfice net',data:rows.map(r=>r.benef),borderColor:amber,borderWidth:2,borderDash:[4,3],pointRadius:0,tension:.3,order:0}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#cfc6e6',boxWidth:12,font:{size:11}}},tooltip:{callbacks:{label:x=>x.dataset.label+': '+eur(x.parsed.y)}}},scales:{x:{grid:{display:false},ticks:{color:'#6f6588',font:{size:10}}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#6f6588',font:{size:10},callback:v=>'€'+new Intl.NumberFormat('fr-FR',{notation:'compact'}).format(v)}}}}}); }
+function bindAnnuel(){ document.querySelectorAll('[data-obj]').forEach(i=>i.addEventListener('input',()=>{STATE.objectifs[+i.dataset.obj]=parseFloat(i.value)||0;save('vfx3_objectifs',STATE.objectifs);drawAnn();})); }
+
+// ---------- CALCULATEUR DE CAMPAGNE (façon Trendtrack) ----------
+function calculateurView(){
+  const c=getCalc();
+  const inp=(k,l,ph,suf,step)=>`<div style="display:flex;flex-direction:column;gap:5px;"><label style="font-size:11.5px;font-weight:600;color:#9a8fb5;">${l}</label><div style="position:relative;"><input class="vf-inp" id="calc_${k}" type="number" step="${step||'any'}" value="${c[k]!=null?c[k]:''}" placeholder="${ph}"><span style="position:absolute;right:11px;top:9px;font-size:12px;color:#6f6588;" class="vf-mono">${suf||''}</span></div></div>`;
+  const res=(id,l,c2,sub)=>`<div style="padding:13px 15px;border-radius:13px;background:rgba(255,255,255,0.03);border:1px solid rgba(167,139,250,0.12);"><div style="font-size:10.5px;color:#9a8fb5;font-weight:700;text-transform:uppercase;">${l}</div><div class="vf-mono" id="${id}" style="font-size:20px;font-weight:800;color:${c2};margin-top:4px;">—</div>${sub?`<div style="font-size:10px;color:#6f6588;margin-top:2px;">${sub}</div>`:''}</div>`;
+  const roasRow=(t)=>`<tr style="${t===0?'background:rgba(251,191,36,0.08);':''}"><td style="text-align:left;font-weight:${t===0?800:600};color:${t===0?amber:'#cfc6e6'};">${t===0?'Break-even (0%)':t+'% de marge nette'}</td><td class="vf-mono" id="res_roas_${t}" style="text-align:right;font-weight:800;color:${t===0?amber:accent};">—</td><td class="vf-mono" id="res_cpa_${t}" style="text-align:right;color:#8b7fa8;">—</td></tr>`;
+  return `<div class="vf-view">
+    <div style="display:grid;grid-template-columns:1fr 1.25fr;gap:18px;align-items:start;">
+      <div class="vf-card">
+        <div style="font-size:15px;font-weight:700;margin-bottom:4px;">Hypothèses produit / campagne</div>
+        <div style="font-size:11.5px;color:#8b7fa8;margin-bottom:14px;">Simule la rentabilité avant de lancer. Sauvegardé automatiquement.</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          ${inp('prix','Prix de vente TTC','34.85','€')}
+          ${inp('cout','Coût produit unitaire','5.29','€')}
+          ${inp('livraison','Frais livraison (à ta charge)','0','€')}
+          ${inp('autres','Autres coûts / commande','0','€')}
+          ${inp('fraisPct','Frais de paiement','3.5','%')}
+          ${inp('tva','TVA','20','%')}
+          ${inp('cpa','CPA prévu (coût d’acquisition)','12','€')}
+          ${inp('ventes','Ventes prévues / mois','100','')}
+          ${inp('fixe','Coûts fixes mensuels','0','€')}
+        </div>
+        <div style="margin-top:12px;font-size:11px;color:#6f6588;line-height:1.5;">« Coûts fixes » est pré-rempli avec le total de ton onglet <a href="#" data-nav="fixes">Coûts fixes</a>. Modifiable ici sans l’écraser.</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+          ${res('res_margeBrute','Marge brute / cmd',green,'avant pub')}
+          ${res('res_cpaBE','CPA max (break-even)',amber,'à ne pas dépasser')}
+          ${res('res_roasBE','ROAS break-even',accent,'CA / pub mini')}
+          ${res('res_profitCmd','Profit / commande','#ece7f7','au CPA prévu')}
+          ${res('res_margeNette','Marge nette / cmd','#ece7f7','% du prix')}
+          ${res('res_pointMort','Point mort','#f472b6','ventes / coûts fixes')}
+        </div>
+        <div class="vf-card">
+          <div style="font-size:14px;font-weight:700;margin-bottom:10px;">Projection mensuelle (<span id="calc_ventesLbl">0</span> ventes)</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+            ${res('res_caProj','CA TTC projeté','#ece7f7')}
+            ${res('res_margeProj','Marge avant fixes',green)}
+            ${res('res_profitNet','Bénéfice net projeté',green,'après coûts fixes')}
+          </div>
+        </div>
+        <div class="vf-card">
+          <div style="font-size:14px;font-weight:700;margin-bottom:8px;">ROAS & CPA cibles par niveau de marge</div>
+          <table style="width:100%;border-collapse:collapse;font-size:13px;"><tr><th class="vf-th" style="text-align:left;">Objectif (par commande)</th><th class="vf-th" style="text-align:right;">ROAS cible</th><th class="vf-th" style="text-align:right;">CPA max</th></tr>
+          ${[0,10,20,30,40].map(roasRow).join('')}</table>
+          <div style="margin-top:8px;font-size:10.5px;color:#6f6588;">Marges par commande (hors coûts fixes). Le « point mort » ci-dessus couvre les coûts fixes.</div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+function recalcCalc(){
+  const g=id=>parseFloat((document.getElementById('calc_'+id)||{}).value)||0;
+  const prix=g('prix'),cout=g('cout'),liv=g('livraison'),autres=g('autres'),fraisP=g('fraisPct')/100,tva=g('tva')/100,cpa=g('cpa'),ventes=g('ventes'),fixe=g('fixe');
+  const caHT=prix/(1+tva), fraisE=prix*fraisP;
+  const margeBrute=caHT-cout-liv-autres-fraisE;
+  const roasBE=margeBrute>0?prix/margeBrute:null;
+  const profitCmd=margeBrute-cpa, margeNette=prix?profitCmd/prix:0;
+  const pointMort=profitCmd>0?Math.ceil(fixe/profitCmd):null;
+  const caProj=prix*ventes, margeProj=margeBrute*ventes, profitNet=profitCmd*ventes-fixe;
+  const S=(id,v,col)=>{const el=document.getElementById(id);if(el){el.textContent=v;if(col)el.style.color=col;}};
+  S('res_margeBrute',eur2(margeBrute),margeBrute<0?red:green);
+  S('res_cpaBE',eur2(margeBrute),amber);
+  S('res_roasBE',roasBE?roasBE.toFixed(2).replace('.',',')+'x':'—',accent);
+  S('res_profitCmd',eur2(profitCmd),profitCmd<0?red:green);
+  S('res_margeNette',pctv(margeNette),profitCmd<0?red:green);
+  S('res_pointMort',pointMort!=null?pointMort+' ventes':'—','#f472b6');
+  S('res_caProj',eur(caProj),'#ece7f7');
+  S('res_margeProj',eur(margeProj),margeProj<0?red:green);
+  S('res_profitNet',eur(profitNet),profitNet<0?red:green);
+  [0,10,20,30,40].forEach(t=>{ const tf=t/100; const cpaT=margeBrute-tf*prix; const roasT=cpaT>0?prix/cpaT:null;
+    S('res_roas_'+t,roasT?roasT.toFixed(2).replace('.',',')+'x':'imposs.'); S('res_cpa_'+t,cpaT>0?eur2(cpaT):'—'); });
+  const lbl=document.getElementById('calc_ventesLbl'); if(lbl) lbl.textContent=ventes||0;
+  // save
+  STATE.calc={prix:g('prix'),cout:g('cout'),livraison:g('livraison'),autres:g('autres'),fraisPct:g('fraisPct'),tva:g('tva'),cpa:g('cpa'),ventes:g('ventes'),fixe:g('fixe')};
+  save('vfx3_calc',STATE.calc);
+}
+function bindCalc(){ ['prix','cout','livraison','autres','fraisPct','tva','cpa','ventes','fixe'].forEach(k=>{const el=document.getElementById('calc_'+k);if(el)el.addEventListener('input',recalcCalc);}); recalcCalc(); }
+
+// ---------- ACQUISITION (métriques ads manuelles) ----------
+function acquisitionView(){
+  const A=monthAgg(STATE.month); const a=STATE.ads[STATE.month]||{};
+  const [yy,mm]=STATE.month.split('-').map(Number);
+  const inp=(k,l,ph)=>`<div style="display:flex;flex-direction:column;gap:5px;"><label style="font-size:11.5px;font-weight:600;color:#9a8fb5;">${l}</label><input class="vf-inp" id="acq_${k}" type="number" step="any" value="${a[k]!=null?a[k]:''}" placeholder="${ph}"></div>`;
+  const kp=(id,l,sub)=>`<div style="padding:13px 15px;border-radius:13px;background:rgba(255,255,255,0.03);border:1px solid rgba(167,139,250,0.12);"><div style="font-size:10.5px;color:#9a8fb5;font-weight:700;text-transform:uppercase;">${l}</div><div class="vf-mono" id="${id}" style="font-size:19px;font-weight:800;color:#ece7f7;margin-top:3px;">—</div>${sub?`<div style="font-size:10px;color:#6f6588;margin-top:2px;">${sub}</div>`:''}</div>`;
+  return `<div class="vf-view">
+    <div class="vf-card" style="max-width:640px;">
+      <div style="font-size:15px;font-weight:700;margin-bottom:4px;">Saisie ads — ${MONTHS[mm-1]} ${yy}</div>
+      <div style="font-size:11.5px;color:#8b7fa8;margin-bottom:14px;">Dépense pub et commandes viennent de ta saisie journalière. Ajoute impressions et clics (depuis ton gestionnaire Meta/TikTok) pour le funnel complet.</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">${inp('imp','Impressions','0')}${inp('clics','Clics','0')}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
+      ${kp('m_dep','Dépense pub','saisie journalière')}${kp('m_mer','MER / ROAS','CA / pub')}${kp('m_cpa','CPA','pub / commande')}${kp('m_cpc','CPC','pub / clic')}
+      ${kp('m_cpm','CPM','pub / 1000 impr.')}${kp('m_ctr','CTR','clics / impr.')}${kp('m_convc','Taux conv. clic→achat','commandes / clics')}${kp('m_part','Part pub du CA','ad ratio')}
+    </div>
+  </div>`;
+}
+function recomputeAcq(){
+  const A=monthAgg(STATE.month); const a=STATE.ads[STATE.month]||{};
+  const imp=num(a.imp), clics=num(a.clics), ads=A.ads, cmd=A.cmd, ca=A.ca;
+  const S=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+  S('m_dep',eur2(ads)); S('m_mer',ads?(ca/ads).toFixed(2).replace('.',',')+'x':'—');
+  S('m_cpa',cmd?eur2(ads/cmd):'—'); S('m_cpc',clics?eur2(ads/clics):'—');
+  S('m_cpm',imp?eur2(ads/imp*1000):'—'); S('m_ctr',imp?pctv(clics/imp):'—');
+  S('m_convc',clics?pctv(cmd/clics):'—'); S('m_part',ca?pctv(ads/ca):'—');
+}
+function bindAcq(){ ['imp','clics'].forEach(k=>{const el=document.getElementById('acq_'+k);if(el)el.addEventListener('input',()=>{ if(!STATE.ads[STATE.month])STATE.ads[STATE.month]={}; const v=el.value; if(v==='')delete STATE.ads[STATE.month][k]; else STATE.ads[STATE.month][k]=parseFloat(v); save('vfx3_ads',STATE.ads); recomputeAcq(); });}); recomputeAcq(); }
+
+// ---------- CLOUD (sauvegarde & synchro) ----------
+function cloudView(){
+  const url=getSyncUrl(), key=getSyncKey(), auto=autoSync();
+  const btn=(id,txt,primary)=>`<button id="${id}" style="padding:9px 16px;border-radius:10px;border:${primary?'none':'1px solid rgba(167,139,250,0.25)'};background:${primary?'linear-gradient(145deg,'+accent+','+accent2+')':'transparent'};color:${primary?'#0a0710':'#cfc6e6'};font-weight:${primary?700:600};font-size:13px;cursor:pointer;">${txt}</button>`;
+  const lab=t=>`<label style="font-size:12px;font-weight:600;color:#9a8fb5;">${t}</label>`;
+  return `<div class="vf-view"><div class="vf-card" style="max-width:740px;">
+    <div style="font-size:16px;font-weight:800;margin-bottom:4px;">Sauvegarde & synchro cloud</div>
+    <div style="font-size:12.5px;color:#8b7fa8;margin-bottom:16px;">Sans ça, tes données ne vivent que dans ce navigateur. Ici tu les sauvegardes dans <b>ton Google Sheet</b> (gratuit, multi-appareils) et/ou dans un <b>fichier</b>.</div>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div style="display:flex;flex-direction:column;gap:5px;">${lab('URL du script Google (Web App)')}<input class="vf-inp" id="cloud_url" placeholder="https://script.google.com/macros/s/.../exec" value="${url}" style="font-size:12px;"></div>
+      <div style="display:flex;flex-direction:column;gap:5px;">${lab('Clé de synchro (optionnelle mais conseillée)')}<input class="vf-inp" id="cloud_key" placeholder="ton code secret" value="${key}"></div>
+      <label style="display:flex;align-items:center;gap:9px;font-size:12.5px;color:#cfc6e6;cursor:pointer;user-select:none;"><input type="checkbox" id="cloud_auto" ${auto?'checked':''} style="width:16px;height:16px;accent-color:#7c3aed;"> Synchro automatique (sauvegarde 2 s après chaque modif)</label>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;">
+      ${btn('cloud_save','☁ Sauvegarder maintenant',true)}
+      ${btn('cloud_load','⬇ Charger depuis le cloud')}
+      ${btn('cloud_export','📄 Exporter (fichier)')}
+      ${btn('cloud_import','📂 Importer (fichier)')}
+      <input type="file" id="cloud_file" accept="application/json,.json" style="display:none;">
+    </div>
+    <div id="cloud_msg" style="margin-top:14px;font-size:12.5px;color:#8b7fa8;min-height:16px;"></div>
+    <div id="cloud_status" style="margin-top:2px;font-size:11.5px;color:#6f6588;"></div>
+    <div style="margin-top:16px;padding:12px 14px;border-radius:12px;background:rgba(167,139,250,0.08);border:1px solid rgba(167,139,250,0.2);font-size:12px;color:#cfc6e6;line-height:1.7;">
+      <b>Mise en place (~10 min, gratuit) — guide fourni <span class="vf-mono">GUIDE-Google-Sheets.md</span> :</b><br>
+      1. Crée un Google Sheet vierge. 2. Menu <b>Extensions → Apps Script</b>. 3. Colle le code <span class="vf-mono">Code.gs</span> fourni. 4. <b>Déployer → Nouveau déploiement → Application Web</b> (exécuter en tant que « moi », accès « tout le monde »). 5. Copie l'URL <span class="vf-mono">…/exec</span> et colle-la ci-dessus. 6. Clique « Sauvegarder maintenant ».
+    </div>
+    <div style="margin-top:10px;font-size:11px;color:#6f6588;">💡 Sur un nouvel appareil : mets la même URL + clé, puis « Charger depuis le cloud ». Le fichier d'export reste un filet de sécurité si tu ne veux aucun compte.</div>
+  </div></div>`;
+}
+function bindCloud(){
+  const b=id=>document.getElementById(id);
+  const persist=()=>{ save('vfx3_syncurl',(b('cloud_url').value||'').trim()); save('vfx3_synckey',(b('cloud_key').value||'').trim()); save('vfx3_autosync',!!b('cloud_auto').checked); };
+  ['cloud_url','cloud_key'].forEach(id=>{const el=b(id);if(el)el.addEventListener('change',persist);});
+  if(b('cloud_auto'))b('cloud_auto').addEventListener('change',persist);
+  if(b('cloud_save'))b('cloud_save').onclick=()=>{ persist(); cloudMsg('Sauvegarde en cours…','#8b7fa8'); syncPush(false).catch(()=>{}); };
+  if(b('cloud_load'))b('cloud_load').onclick=()=>{ persist(); if(confirm('Charger les données du cloud et remplacer celles de cet appareil ?')) syncPull(); };
+  if(b('cloud_export'))b('cloud_export').onclick=exportJSON;
+  if(b('cloud_import'))b('cloud_import').onclick=()=>b('cloud_file').click();
+  if(b('cloud_file'))b('cloud_file').onchange=e=>{ if(e.target.files&&e.target.files[0])importJSON(e.target.files[0]); };
+  updateSyncStatus();
+}
+
+// ---------- router ----------
+function renderView(){
+  const c=document.getElementById('content'); let html='';
+  switch(STATE.nav){
+    case 'dashboard': html=dashboardView(); break;
+    case 'journal': html=journalView(); break;
+    case 'resultat': html=resultatView(); break;
+    case 'annuel': html=annuelView(); break;
+    case 'calculateur': html=calculateurView(); break;
+    case 'acquisition': html=acquisitionView(); break;
+    case 'produits': html=productsView(); break;
+    case 'recap': html=recapView(); break;
+    case 'fixes': html=fixesView(); break;
+    case 'synthese': html=syntheseView(); break;
+    case 'params': html=paramsView(); break;
+    case 'cloud': html=cloudView(); break;
+    case 'connexion': html=connexionView(); break;
+  }
+  c.innerHTML=html;
+  c.querySelectorAll('[data-nav]').forEach(a=>a.onclick=e=>{e.preventDefault();go(a.dataset.nav);});
+  if(STATE.nav==='dashboard') drawDash();
+  if(STATE.nav==='journal'){ bindJournal(); recomputeJournal(); }
+  if(STATE.nav==='annuel'){ drawAnn(); bindAnnuel(); }
+  if(STATE.nav==='calculateur') bindCalc();
+  if(STATE.nav==='acquisition') bindAcq();
+  if(STATE.nav==='produits'){ if(!STATE.productsData) fetchProducts(); else drawProducts(); }
+  if(STATE.nav==='cloud') bindCloud();
+  if(STATE.nav==='recap') drawRecap();
+  if(STATE.nav==='fixes') bindFixes();
+  if(STATE.nav==='synthese') drawSyn();
+  if(STATE.nav==='params') bindParams();
+  if(STATE.nav==='connexion') bindConnexion();
+}
+
+// month nav + import
+document.getElementById('mPrev').onclick=()=>{ const [y,m]=STATE.month.split('-').map(Number); const d=new Date(y,m-2,1); STATE.month=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); save('vfx3_month',STATE.month); renderChrome(); renderView(); };
+document.getElementById('mNext').onclick=()=>{ const [y,m]=STATE.month.split('-').map(Number); const d=new Date(y,m,1); STATE.month=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); save('vfx3_month',STATE.month); renderChrome(); renderView(); };
+document.getElementById('importBtn').onclick=importShopify;
+
+renderChrome(); renderView();
+</script>
+</body>
+</html>
