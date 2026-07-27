@@ -5,61 +5,91 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>VaultFX — Pilotage financier</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-  :root { color-scheme: light; }
+  :root{
+    color-scheme: dark;
+    --txt:#eef1f8; --txt2:#c4cad9; --muted:#98a0b5; --muted2:#828aa2; --dim2:#6e768c; --dim:#5c6379; --dim3:#3f4457;
+    --acc-tx:#a9b4ff; --bg-base:#0f1320;
+    --app-bg: radial-gradient(1100px 640px at 12% -14%, rgba(99,102,241,0.16), transparent 60%),radial-gradient(1000px 540px at 106% -4%, rgba(139,92,246,0.11), transparent 55%),radial-gradient(900px 720px at 50% 120%, rgba(56,70,160,0.10), transparent 60%),#0f1320;
+    --card-bg: rgba(26,31,46,0.74); --card-bd: rgba(132,142,182,0.15); --card-sh: 0 16px 42px -28px rgba(10,14,34,0.85), inset 0 1px 0 rgba(255,255,255,0.04);
+    --head-bg: rgba(15,19,32,0.82); --th-bg:#1a2033; --sticky-bg:#161b2b; --wtot-first:#1c2338;
+    --fill0: rgba(255,255,255,0.02); --fill1: rgba(255,255,255,0.03); --fill2: rgba(255,255,255,0.045); --fill3: rgba(255,255,255,0.06);
+    --line0: rgba(255,255,255,0.05); --line1: rgba(255,255,255,0.06); --line: rgba(255,255,255,0.08); --line2: rgba(255,255,255,0.10); --line3: rgba(255,255,255,0.12);
+    --inp-bg: rgba(255,255,255,0.05); --inp-bd: rgba(132,142,182,0.24);
+    --tick:#828aa2; --legend:#c4cad9; --grid: rgba(255,255,255,0.06); --tip-bg: rgba(22,27,42,0.97);
+    --scroll: rgba(132,142,182,0.35); --scrolltrack: rgba(255,255,255,0.03);
+  }
+  :root[data-theme="light"]{
+    color-scheme: light;
+    --txt:#1f2433; --txt2:#4a5163; --muted:#6b7285; --muted2:#7c8497; --dim2:#8f96a8; --dim:#a6adbd; --dim3:#cdd2dd;
+    --acc-tx:#5b4bd6; --bg-base:#f4f6fb;
+    --app-bg: radial-gradient(1100px 640px at 12% -14%, rgba(99,102,241,0.07), transparent 60%),radial-gradient(1000px 540px at 106% -4%, rgba(139,92,246,0.05), transparent 55%),radial-gradient(900px 720px at 50% 120%, rgba(56,70,160,0.04), transparent 60%),#f4f6fb;
+    --card-bg: #ffffff; --card-bd: rgba(70,80,120,0.14); --card-sh: 0 10px 26px -18px rgba(40,50,90,0.18), inset 0 1px 0 #ffffff;
+    --head-bg: rgba(250,251,255,0.85); --th-bg:#eef1f8; --sticky-bg:#f3f5fb; --wtot-first:#eaeefb;
+    --fill0: rgba(50,60,100,0.02); --fill1: rgba(50,60,100,0.03); --fill2: rgba(50,60,100,0.045); --fill3: rgba(50,60,100,0.06);
+    --line0: rgba(40,50,80,0.07); --line1: rgba(40,50,80,0.08); --line: rgba(40,50,80,0.10); --line2: rgba(40,50,80,0.12); --line3: rgba(40,50,80,0.14);
+    --inp-bg: rgba(60,70,110,0.05); --inp-bd: rgba(60,70,110,0.20);
+    --tick:#8f96a8; --legend:#4a5163; --grid: rgba(40,50,80,0.09); --tip-bg: rgba(35,40,60,0.96);
+    --scroll: rgba(99,102,241,0.35); --scrolltrack: rgba(60,70,110,0.05);
+  }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { background: #09060f; }
+  html, body { background: var(--bg-base); }
   ::-webkit-scrollbar { width: 9px; height: 9px; }
-  ::-webkit-scrollbar-thumb { background: rgba(167,139,250,0.3); border-radius: 20px; }
-  ::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
+  ::-webkit-scrollbar-thumb { background: var(--scroll); border-radius: 20px; }
+  ::-webkit-scrollbar-track { background: var(--scrolltrack); }
   @keyframes floatGlow { 0%,100% { opacity: .5; } 50% { opacity: .9; } }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-  a { color: #b794ff; text-decoration: none; } a:hover { color: #d8b4fe; }
-  .vf-mono { font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace; }
-  .vf-card { padding: 20px 22px; border-radius: 20px; background: rgba(28,20,48,0.42); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(167,139,250,0.16); box-shadow: 0 22px 60px -24px rgba(124,58,237,0.5), inset 0 1px 0 rgba(255,255,255,0.06); }
+  a { color: #b794ff; text-decoration: none; } a:hover { color: var(--acc-tx); }
+  body, input, button, select, textarea { font-family: 'Montserrat', system-ui, -apple-system, sans-serif; }
+  .vf-mono { font-family: 'Montserrat', system-ui, sans-serif; font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1; letter-spacing: -0.01em; }
+  .vf-card { padding: 20px 22px; border-radius: 20px; background: var(--card-bg); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid var(--card-bd); box-shadow: var(--card-sh); }
   .vf-view { animation: fadeIn .25s ease; }
-  .vf-navbtn:hover { background: rgba(167,139,250,0.10) !important; }
-  input.vf-inp { width: 100%; padding: 9px 11px; border-radius: 10px; background: rgba(255,255,255,0.04); border: 1px solid rgba(167,139,250,0.18); color: #ece7f7; font-size: 13px; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+  .vf-navbtn:hover { background: rgba(167,139,250,0.12) !important; }
+  input.vf-inp { width: 100%; padding: 9px 11px; border-radius: 10px; background: var(--inp-bg); border: 1px solid var(--inp-bd); color: var(--txt); font-size: 13px; font-family: 'Montserrat', system-ui, sans-serif; font-variant-numeric: tabular-nums; }
   input.vf-inp:focus { outline: none; border-color: #b794ff; }
-  .vf-th { font-size: 10.5px; font-weight: 700; color: #7a6f95; letter-spacing: 0.02em; text-transform: uppercase; }
+  .vf-th { font-size: 10.5px; font-weight: 700; color: var(--dim2); letter-spacing: 0.02em; text-transform: uppercase; }
   /* ledger table */
   table.led { border-collapse: collapse; width: 100%; font-size: 12px; }
-  table.led th { position: sticky; top: 0; background: #14101f; z-index: 2; padding: 9px 6px; text-align: right; font-size: 10px; font-weight: 700; color: #9a8fb5; text-transform: uppercase; letter-spacing: .02em; border-bottom: 1px solid rgba(167,139,250,0.2); white-space: nowrap; }
-  table.led th:first-child, table.led td:first-child { text-align: left; position: sticky; left: 0; background: #120e1c; z-index: 1; }
+  table.led th { position: sticky; top: 0; background: var(--th-bg); z-index: 2; padding: 9px 6px; text-align: right; font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .02em; border-bottom: 1px solid rgba(167,139,250,0.2); white-space: nowrap; }
+  table.led th:first-child, table.led td:first-child { text-align: left; position: sticky; left: 0; background: var(--sticky-bg); z-index: 1; }
   table.led th:first-child { z-index: 3; }
-  table.led td { padding: 3px 5px; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.03); white-space: nowrap; }
-  table.led input { width: 78px; padding: 6px 7px; border-radius: 7px; background: rgba(183,148,255,0.07); border: 1px solid rgba(167,139,250,0.16); color: #ece7f7; font-size: 12px; text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace; }
-  table.led input:focus { outline: none; border-color: #b794ff; background: rgba(183,148,255,0.14); }
-  table.led .comp { color: #cfc6e6; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; }
-  tr.wtot td { background: rgba(167,139,250,0.09); font-weight: 700; color: #ece7f7; border-top: 1px solid rgba(167,139,250,0.2); border-bottom: 1px solid rgba(167,139,250,0.2); }
-  tr.mtot td { background: linear-gradient(90deg, rgba(124,58,237,0.28), rgba(124,58,237,0.12)); font-weight: 800; color: #fff; border-top: 2px solid #7c3aed; }
-  tr.wend td:first-child, tr.wtot td:first-child, tr.mtot td:first-child { background: #17122a; }
+  table.led td { padding: 3px 5px; text-align: right; border-bottom: 1px solid var(--line0); white-space: nowrap; }
+  table.led input { width: 78px; padding: 6px 7px; border-radius: 7px; background: rgba(183,148,255,0.10); border: 1px solid rgba(167,139,250,0.2); color: var(--txt); font-size: 12px; text-align: right; font-family: 'Montserrat', system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+  table.led input:focus { outline: none; border-color: #b794ff; background: rgba(183,148,255,0.18); }
+  table.led .comp { color: var(--txt2); font-family: 'Montserrat', system-ui, sans-serif; font-variant-numeric: tabular-nums; font-size: 12px; }
+  tr.wtot td { background: rgba(167,139,250,0.12); font-weight: 700; color: var(--txt); border-top: 1px solid rgba(167,139,250,0.2); border-bottom: 1px solid rgba(167,139,250,0.2); }
+  tr.mtot td { background: linear-gradient(90deg, rgba(124,58,237,0.28), rgba(124,58,237,0.12)); font-weight: 800; color: var(--txt); border-top: 2px solid #7c3aed; }
+  tr.wend td:first-child, tr.wtot td:first-child, tr.mtot td:first-child { background: var(--wtot-first); }
   .wend { border-bottom: 1px solid rgba(167,139,250,0.15) !important; }
 </style>
 </head>
 <body>
-<div id="app" style="min-height:100vh;width:100%;font-family:'Manrope',system-ui,-apple-system,sans-serif;color:#ece7f7;background:radial-gradient(1100px 620px at 12% -12%, rgba(124,58,237,0.30), transparent 60%),radial-gradient(1000px 520px at 104% -4%, rgba(190,80,200,0.20), transparent 55%),radial-gradient(900px 700px at 50% 120%, rgba(80,50,180,0.16), transparent 60%),#09060f;display:grid;grid-template-columns:238px 1fr;letter-spacing:-0.01em;">
+<div id="app" style="min-height:100vh;width:100%;font-family:'Montserrat',system-ui,-apple-system,sans-serif;color:var(--txt);background:var(--app-bg);display:grid;grid-template-columns:238px 1fr;letter-spacing:-0.01em;">
   <aside style="border-right:1px solid rgba(167,139,250,0.14);padding:22px 16px;display:flex;flex-direction:column;gap:20px;position:sticky;top:0;height:100vh;">
     <div style="display:flex;align-items:center;gap:11px;padding:4px 8px;">
       <div style="width:34px;height:34px;border-radius:10px;background:linear-gradient(145deg,#b794ff,#7c3aed);box-shadow:0 6px 22px -6px #7c3aed;display:grid;place-items:center;font-weight:800;font-size:17px;color:#0a0710;">V</div>
-      <div><div style="font-weight:800;font-size:16px;line-height:1;">Vault<span style="color:#b794ff;">FX</span></div><div style="font-size:10.5px;color:#8b7fa8;font-weight:600;letter-spacing:0.04em;margin-top:3px;">PILOTAGE FINANCIER</div></div>
+      <div><div style="font-weight:800;font-size:16px;line-height:1;">Vault<span style="color:#b794ff;">FX</span></div><div style="font-size:10.5px;color:var(--muted2);font-weight:600;letter-spacing:0.04em;margin-top:3px;">PILOTAGE FINANCIER</div></div>
     </div>
     <nav id="nav" style="display:flex;flex-direction:column;gap:2px;"></nav>
     <div style="margin-top:auto;display:flex;flex-direction:column;gap:8px;">
-      <div style="font-size:10.5px;color:#6f6588;font-weight:700;letter-spacing:0.08em;padding:0 8px;">SOURCE</div>
+      <div style="font-size:10.5px;color:var(--dim);font-weight:700;letter-spacing:0.08em;padding:0 8px;">SOURCE</div>
       <div id="sources" style="display:flex;flex-direction:column;gap:6px;"></div>
     </div>
   </aside>
   <main style="min-width:0;display:flex;flex-direction:column;">
-    <header style="display:flex;align-items:center;gap:16px;padding:14px 26px;border-bottom:1px solid rgba(167,139,250,0.12);position:sticky;top:0;z-index:30;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);background:rgba(10,7,17,0.7);">
-      <div><div id="viewTitle" style="font-size:19px;font-weight:800;">Saisie journalière</div><div id="viewSub" style="font-size:12px;color:#8b7fa8;font-weight:500;margin-top:2px;">—</div></div>
+    <header style="display:flex;align-items:center;gap:16px;padding:14px 26px;border-bottom:1px solid var(--card-bd);position:sticky;top:0;z-index:30;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);background:var(--head-bg);">
+      <div><div id="viewTitle" style="font-size:19px;font-weight:800;">Saisie journalière</div><div id="viewSub" style="font-size:12px;color:var(--muted2);font-weight:500;margin-top:2px;">—</div></div>
       <div style="margin-left:auto;display:flex;align-items:center;gap:10px;">
-        <div style="display:flex;align-items:center;gap:4px;padding:4px;border-radius:11px;background:rgba(255,255,255,0.04);border:1px solid rgba(167,139,250,0.12);">
-          <button id="mPrev" style="border:none;background:transparent;color:#cfc6e6;cursor:pointer;font-size:15px;padding:4px 9px;border-radius:8px;">‹</button>
+        <div style="display:flex;align-items:center;gap:4px;padding:4px;border-radius:11px;background:var(--fill3);border:1px solid rgba(167,139,250,0.12);">
+          <button id="mPrev" style="border:none;background:transparent;color:var(--txt2);cursor:pointer;font-size:15px;padding:4px 9px;border-radius:8px;">‹</button>
           <span id="mLabel" class="vf-mono" style="font-size:13px;font-weight:700;min-width:118px;text-align:center;">—</span>
-          <button id="mNext" style="border:none;background:transparent;color:#cfc6e6;cursor:pointer;font-size:15px;padding:4px 9px;border-radius:8px;">›</button>
+          <button id="mNext" style="border:none;background:transparent;color:var(--txt2);cursor:pointer;font-size:15px;padding:4px 9px;border-radius:8px;">›</button>
         </div>
-        <button id="importBtn" style="display:flex;align-items:center;gap:7px;padding:8px 12px;border-radius:11px;background:rgba(167,139,250,0.14);border:1px solid rgba(167,139,250,0.25);font-size:12.5px;font-weight:600;color:#d8b4fe;cursor:pointer;">⬇ Importer CA Shopify</button>
+        <button id="importBtn" style="display:flex;align-items:center;gap:7px;padding:8px 12px;border-radius:11px;background:rgba(167,139,250,0.14);border:1px solid rgba(167,139,250,0.25);font-size:12.5px;font-weight:600;color:var(--acc-tx);cursor:pointer;">⬇ Importer CA Shopify</button>
+        <div id="themeSel" style="display:flex;padding:3px;border-radius:11px;background:var(--fill3);border:1px solid rgba(167,139,250,0.14);"></div>
         <span id="saveDot" style="width:8px;height:8px;border-radius:50%;background:#34d399;box-shadow:0 0 7px #34d399;" title="Sauvegardé"></span>
       </div>
     </header>
@@ -94,11 +124,19 @@ function load(k,f){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v)
 function save(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} flashSaved(); schedulePush(); }
 function flashSaved(){ const d=document.getElementById('saveDot'); if(!d)return; d.style.background=amber; setTimeout(()=>d.style.background=green,300); }
 
+// ---------- Thème (clair / sombre / système) ----------
+function cssv(n){ try{ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }catch(e){ return ''; } }
+const THX={ get tick(){return cssv('--tick')||'var(--dim)';}, get txt2(){return cssv('--legend')||'var(--txt2)';}, get grid(){return cssv('--grid')||'rgba(255,255,255,0.05)';}, get tip(){return cssv('--tip-bg')||THX.tip;} };
+function getTheme(){ return load('vfx3_theme','system'); }
+function applyTheme(){ const t=getTheme(); const eff=t==='system'?((window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light'):t; if(eff==='light')document.documentElement.setAttribute('data-theme','light'); else document.documentElement.removeAttribute('data-theme'); }
+function setTheme(t){ save('vfx3_theme',t); applyTheme(); renderChrome(); renderView(); }
+if(window.matchMedia){ try{ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{ if(getTheme()==='system'){ applyTheme(); if(typeof renderChrome==='function'){renderChrome();renderView();} } }); }catch(e){} }
+
 // ---------- Sauvegarde / synchro cloud (Google Sheets) ----------
 const SPREFIX='vfx3_';
 function gatherState(){ const o={}; for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i); if(k&&k.indexOf(SPREFIX)===0&&k!=='vfx3_lastsync'){ try{o[k]=JSON.parse(localStorage.getItem(k));}catch(e){o[k]=localStorage.getItem(k);} }} return o; }
 function applyState(o){ if(!o||typeof o!=='object')return; Object.keys(o).forEach(k=>{ if(k.indexOf(SPREFIX)===0){ try{localStorage.setItem(k,JSON.stringify(o[k]));}catch(e){} } }); }
-function reloadStateFromStorage(){ STATE.month=load('vfx3_month',curMonth()); STATE.settings=Object.assign({},DEF_SET,load('vfx3_settings',{})); STATE.fixed=load('vfx3_fixed',DEF_FIXED); STATE.objectifs=load('vfx3_objectifs',DEF_OBJ); STATE.ledger=load('vfx3_ledger',{}); STATE.calc=load('vfx3_calc',null); STATE.ads=load('vfx3_ads',{}); }
+function reloadStateFromStorage(){ STATE.month=load('vfx3_month',curMonth()); STATE.settings=Object.assign({},DEF_SET,load('vfx3_settings',{})); STATE.fixedByMonth=load('vfx3_fixedm',{}); STATE.objectifs=load('vfx3_objectifs',DEF_OBJ); STATE.ledger=load('vfx3_ledger',{}); STATE.calc=load('vfx3_calc',null); STATE.ads=load('vfx3_ads',{}); }
 function getSyncUrl(){ return load('vfx3_syncurl',''); }
 function getSyncKey(){ return load('vfx3_synckey',''); }
 function autoSync(){ return load('vfx3_autosync',false); }
@@ -109,7 +147,7 @@ async function syncPush(silent){ if(!getSyncUrl()){ if(!silent)cloudMsg("Configu
 async function syncPull(){ try{ const j=await cloudPost('load',null); if(!j.data||!Object.keys(j.data).length){ cloudMsg("Aucune donnée dans le cloud pour l'instant.",amber); return; } applyState(j.data); reloadStateFromStorage(); try{localStorage.setItem('vfx3_lastsync',new Date().toISOString());}catch(e){} cloudMsg('Données chargées depuis le cloud ✓',green); renderChrome(); renderView(); }catch(e){ cloudMsg('Échec : '+e.message,red); } }
 function exportJSON(){ const blob=new Blob([JSON.stringify(gatherState(),null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='vaultfx-sauvegarde-'+new Date().toISOString().slice(0,10)+'.json'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); cloudMsg('Sauvegarde téléchargée ✓',green); }
 function importJSON(file){ const r=new FileReader(); r.onload=()=>{ try{ applyState(JSON.parse(r.result)); reloadStateFromStorage(); cloudMsg('Import réussi ✓',green); renderChrome(); renderView(); }catch(e){ cloudMsg('Fichier invalide',red); } }; r.readAsText(file); }
-function cloudMsg(t,c){ const el=document.getElementById('cloud_msg'); if(el){ el.textContent=t; el.style.color=c||'#8b7fa8'; } }
+function cloudMsg(t,c){ const el=document.getElementById('cloud_msg'); if(el){ el.textContent=t; el.style.color=c||'var(--muted2)'; } }
 function updateSyncStatus(){ const el=document.getElementById('cloud_status'); if(!el)return; const t=load('vfx3_lastsync',null); el.textContent=t?('Dernière synchro : '+new Date(t).toLocaleString('fr-FR')):'Jamais synchronisé sur cet appareil'; }
 
 function curMonth(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
@@ -117,7 +155,7 @@ const STATE={
   nav:'journal',
   month: load('vfx3_month', curMonth()),
   settings: Object.assign({},DEF_SET, load('vfx3_settings',{})),
-  fixed: load('vfx3_fixed', DEF_FIXED),
+  fixedByMonth: load('vfx3_fixedm', {}),
   objectifs: load('vfx3_objectifs', DEF_OBJ),
   ledger: load('vfx3_ledger', {}),
   weeks: [],
@@ -126,12 +164,11 @@ const STATE={
   ads: load('vfx3_ads', {})
 };
 const DEF_CALC={prix:34.85,cout:5.29,livraison:0,autres:0,fraisPct:3.5,tva:20,cpa:12,ventes:100,fixe:null};
-function getCalc(){ const c=Object.assign({},DEF_CALC,STATE.calc||{}); if(c.fixe==null)c.fixe=fixedTotalGuess(); return c; }
-function fixedTotalGuess(){ try{ return (STATE.fixed||[]).reduce((a,f)=>a+(parseFloat(f.amount)||0),0); }catch(e){ return 0; } }
+function getCalc(){ const c=Object.assign({},DEF_CALC,STATE.calc||{}); if(c.fixe==null)c.fixe=fixedTotal(STATE.month); return c; }
 
 // ---------- format ----------
 function num(x){ const n=parseFloat(x); return isNaN(n)?0:n; }
-function eur(n){ return '€'+new Intl.NumberFormat('fr-FR',{maximumFractionDigits:0}).format(Number(n)||0); }
+function eur(n){ return eur2(n); }
 function eur2(n){ const v=Number(n)||0; return (v<0?'−€':'€')+new Intl.NumberFormat('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2}).format(Math.abs(v)); }
 function pctv(x){ return (x*100).toFixed(1).replace('.',',')+'%'; }
 function setTxt(id,t){ const el=document.getElementById(id); if(el)el.textContent=t; }
@@ -171,7 +208,15 @@ function monthAgg(month){
   for(let d=1;d<=dim;d++){ const e=STATE.ledger[month+'-'+String(d).padStart(2,'0')]; if(!e)continue; const r=computeDay(e); A.ca+=r.ca;A.caHT+=r.caHT;A.cout+=r.cout;A.frais+=r.frais;A.cmd+=r.cmd;A.ads+=r.ads;A.marge+=r.marge; }
   return A;
 }
-function fixedTotal(){ return STATE.fixed.reduce((a,f)=>a+num(f.amount),0); }
+function fixedTemplate(m){
+  const keys=Object.keys(STATE.fixedByMonth).filter(k=>k<m).sort();
+  if(keys.length){ return STATE.fixedByMonth[keys[keys.length-1]].map(x=>({name:x.name,amount:x.amount})); }
+  const legacy=load('vfx3_fixed',null);
+  if(legacy&&legacy.length) return legacy.map(x=>({name:x.name,amount:x.amount}));
+  return DEF_FIXED.map(x=>({name:x.name,amount:x.amount}));
+}
+function effectiveFixed(m){ m=m||STATE.month; return STATE.fixedByMonth[m]||fixedTemplate(m); }
+function fixedTotal(m){ return effectiveFixed(m||STATE.month).reduce((a,f)=>a+num(f.amount),0); }
 
 // ---------- nav ----------
 const NAV=[
@@ -193,16 +238,18 @@ const TITLES={dashboard:"Vue d'ensemble",journal:'Saisie journalière',resultat:
 
 function renderChrome(){
   const nav=document.getElementById('nav');
-  nav.innerHTML=NAV.map(n=>{const on=STATE.nav===n.key;return `<a href="#" class="vf-navbtn" data-nav="${n.key}" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:11px;font-size:13.5px;font-weight:600;color:${on?'#ece7f7':'#9a8fb5'};background:${on?'rgba(167,139,250,0.14)':'transparent'};border:1px solid ${on?'rgba(167,139,250,0.2)':'transparent'};transition:all .16s;"><span style="width:7px;height:7px;border-radius:3px;background:${on?accent:'#4a4260'};box-shadow:${on?'0 0 8px '+accent:'none'};"></span>${n.label}</a>`;}).join('');
+  nav.innerHTML=NAV.map(n=>{const on=STATE.nav===n.key;return `<a href="#" class="vf-navbtn" data-nav="${n.key}" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:11px;font-size:13.5px;font-weight:600;color:${on?'var(--txt)':'var(--muted)'};background:${on?'rgba(167,139,250,0.14)':'transparent'};border:1px solid ${on?'rgba(167,139,250,0.2)':'transparent'};transition:all .16s;"><span style="width:7px;height:7px;border-radius:3px;background:${on?accent:'var(--dim3)'};box-shadow:${on?'0 0 8px '+accent:'none'};"></span>${n.label}</a>`;}).join('');
   nav.querySelectorAll('[data-nav]').forEach(a=>a.onclick=e=>{e.preventDefault();go(a.dataset.nav);});
   const mode=connMode();
   const st=mode==='cowork'?['Cowork',green]:mode==='proxy'?['Proxy',green]:['Manuel',amber];
-  document.getElementById('sources').innerHTML=`<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);"><span style="width:8px;height:8px;border-radius:50%;background:${st[1]};box-shadow:0 0 8px ${st[1]};"></span><span style="font-size:12.5px;font-weight:600;color:#cfc6e6;">Shopify</span><span style="margin-left:auto;font-size:10.5px;color:#7a6f95;font-weight:600;">${st[0]}</span></div><div style="font-size:10.5px;color:#6f6588;padding:2px 4px;">Données saisies sauvegardées sur cet appareil.</div>`;
+  document.getElementById('sources').innerHTML=`<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:var(--fill1);border:1px solid var(--fill3);"><span style="width:8px;height:8px;border-radius:50%;background:${st[1]};box-shadow:0 0 8px ${st[1]};"></span><span style="font-size:12.5px;font-weight:600;color:var(--txt2);">Shopify</span><span style="margin-left:auto;font-size:10.5px;color:var(--dim2);font-weight:600;">${st[0]}</span></div><div style="font-size:10.5px;color:var(--dim);padding:2px 4px;">Données saisies sauvegardées sur cet appareil.</div>`;
   const [y,m]=STATE.month.split('-').map(Number);
   document.getElementById('mLabel').textContent=MONTHS[m-1]+' '+y;
   document.getElementById('viewTitle').textContent=TITLES[STATE.nav];
   document.getElementById('viewSub').textContent=({dashboard:"Vue d'ensemble de l'année "+STATE.month.split('-')[0]+' — objectifs, marge, bénéfice, simulateur ROAS.',journal:'Entre ton CA TTC, coût produit, commandes, ATC, conv et ads — le reste se calcule.',resultat:'Compte de résultat du mois sélectionné.',annuel:'Les 12 mois : objectifs vs réel, marge et bénéfice net.',calculateur:'Teste la rentabilité d’un produit / une campagne avant de lancer, coûts fixes inclus.',acquisition:'Métriques pub en saisie manuelle (CPM, CPC, CTR, CPA, MER…) sans connecter Meta.',produits:'Meilleures ventes par produit et variante/couleur (Shopify).',recap:'Chaque poste + sa contribution au CA et au coût total.',fixes:'Base des charges fixes mensuelles (remboursements, apps, abonnements…).',synthese:'Totaux du mois et courbes.',params:'TVA, frais, impôt — pilotent tous les calculs.',cloud:'Sauvegarde tes données dans ton Google Sheet (gratuit) ou un fichier.',connexion:'Brancher Shopify (facultatif) pour pré-remplir le CA.'})[STATE.nav];
   document.getElementById('importBtn').style.display=(STATE.nav==='journal')?'flex':'none';
+  const th=getTheme(), tsel=document.getElementById('themeSel');
+  if(tsel){ tsel.innerHTML=[['light','☀'],['dark','🌙'],['system','⛭']].map(x=>`<button data-th="${x[0]}" title="${x[0]==='light'?'Clair':x[0]==='dark'?'Sombre':'Système'}" style="border:none;cursor:pointer;padding:5px 9px;border-radius:8px;font-size:13px;line-height:1;background:${th===x[0]?accent:'transparent'};color:${th===x[0]?'#0a0710':'var(--muted)'};">${x[1]}</button>`).join(''); tsel.querySelectorAll('[data-th]').forEach(b=>b.onclick=()=>setTheme(b.dataset.th)); }
 }
 function go(k){ STATE.nav=k; renderChrome(); renderView(); }
 
@@ -216,7 +263,7 @@ function journalView(){
       const e=STATE.ledger[day.dateKey]||{}; const dd=String(day.d).padStart(2,'0');
       const wend=day.wd===0?'wend':'';
       rowsHtml+=`<tr class="${wend}">
-        <td><span class="vf-mono" style="color:${day.wd===0||day.wd===6?'#8b7fa8':'#cfc6e6'};">${dd} <span style="color:#6f6588;">${WD[day.wd]}</span></span></td>
+        <td><span class="vf-mono" style="color:${day.wd===0||day.wd===6?'var(--muted2)':'var(--txt2)'};">${dd} <span style="color:var(--dim);">${WD[day.wd]}</span></span></td>
         <td><input type="text" data-d="${day.dateKey}" data-f="deb" value="${e.deb!=null?e.deb:''}" placeholder="—" style="width:60px;"></td>
         <td><input type="text" data-d="${day.dateKey}" data-f="fin" value="${e.fin!=null?e.fin:''}" placeholder="—" style="width:60px;"></td>
         <td><input type="number" step="any" inputmode="decimal" data-d="${day.dateKey}" data-f="ca" value="${e.ca!=null?e.ca:''}" placeholder="0"></td>
@@ -260,7 +307,7 @@ function journalView(){
     <div class="vf-card" style="padding:0;overflow:hidden;">
       <div style="overflow-x:auto;max-height:66vh;overflow-y:auto;"><table class="led"><thead><tr>${head}</tr></thead><tbody>${rowsHtml}</tbody></table></div>
     </div>
-    <div style="font-size:11.5px;color:#8b7fa8;">Cases <span style="color:#b794ff;">violettes</span> = à remplir. Le reste (CA HT, frais, CPA, panier, marge, taux marge, ROAS) se calcule automatiquement. Tout est sauvegardé en direct.</div>
+    <div style="font-size:11.5px;color:var(--muted2);">Cases <span style="color:#b794ff;">violettes</span> = à remplir. Le reste (CA HT, frais, CPA, panier, marge, taux marge, ROAS) se calcule automatiquement. Tout est sauvegardé en direct.</div>
   </div>`;
 }
 function recomputeJournal(){
@@ -275,15 +322,15 @@ function recomputeJournal(){
       setTxt('c_'+day.dateKey+'_cpa', e&&e.ads!=null&&r.cmd?eur2(r.cpa):'');
       setTxt('c_'+day.dateKey+'_cpar', e&&e.ads!=null&&r.caHT?pctv(r.cpar):'');
       setTxt('c_'+day.dateKey+'_panier', e&&r.cmd?eur2(r.panier):'');
-      const mEl=document.getElementById('c_'+day.dateKey+'_marge'); if(mEl){ mEl.textContent=e&&e.ca!=null?eur2(r.marge):''; mEl.style.color=r.marge<0?red:'#cfc6e6'; }
+      const mEl=document.getElementById('c_'+day.dateKey+'_marge'); if(mEl){ mEl.textContent=e&&e.ca!=null?eur2(r.marge):''; mEl.style.color=r.marge<0?red:'var(--txt2)'; }
       setTxt('c_'+day.dateKey+'_txm', e&&e.ca!=null?pctv(r.txm):'');
-      const rEl=document.getElementById('c_'+day.dateKey+'_roas'); if(rEl){ rEl.textContent=e&&e.ads!=null&&r.ads?r.roas.toFixed(2).replace('.',',')+'x':''; rEl.style.color=r.roas>=STATE.settings.roasBE?green:r.roas>0?amber:'#cfc6e6'; }
+      const rEl=document.getElementById('c_'+day.dateKey+'_roas'); if(rEl){ rEl.textContent=e&&e.ads!=null&&r.ads?r.roas.toFixed(2).replace('.',',')+'x':''; rEl.style.color=r.roas>=STATE.settings.roasBE?green:r.roas>0?amber:'var(--txt2)'; }
       W.ca+=r.ca;W.caHT+=r.caHT;W.cout+=r.cout;W.frais+=r.frais;W.cmd+=r.cmd;W.ads+=r.ads;W.marge+=r.marge;
     });
     setTxt('w_'+wi+'_ca',eur(W.ca));setTxt('w_'+wi+'_caHT',eur(W.caHT));setTxt('w_'+wi+'_cout',eur(W.cout));setTxt('w_'+wi+'_frais',eur(W.frais));
     setTxt('w_'+wi+'_cmd',W.cmd||'');setTxt('w_'+wi+'_cpa',W.cmd?eur2(W.ads/W.cmd):'');setTxt('w_'+wi+'_cpar',W.caHT?pctv(W.ads/W.caHT):'');
     setTxt('w_'+wi+'_panier',W.cmd?eur2(W.ca/W.cmd):'');setTxt('w_'+wi+'_ads',eur(W.ads));
-    const wm=document.getElementById('w_'+wi+'_marge'); if(wm){wm.textContent=eur(W.marge);wm.style.color=W.marge<0?red:'#ece7f7';}
+    const wm=document.getElementById('w_'+wi+'_marge'); if(wm){wm.textContent=eur(W.marge);wm.style.color=W.marge<0?red:'var(--txt)';}
     setTxt('w_'+wi+'_txm',W.caHT?pctv(W.marge/W.caHT):'');setTxt('w_'+wi+'_roas',W.ads?(W.ca/W.ads).toFixed(2).replace('.',',')+'x':'');
     for(const k in M)M[k]+=W[k];
   });
@@ -294,8 +341,8 @@ function recomputeJournal(){
   setTxt('m_txm',M.caHT?pctv(M.marge/M.caHT):'');setTxt('m_roas',M.ads?(M.ca/M.ads).toFixed(2).replace('.',',')+'x':'');
   // kpi strip
   const impot=M.caHT*(STATE.settings.impotPct/100); const benef=M.marge-fixedTotal()-impot;
-  const kpi=(l,v,c)=>`<div class="vf-card" style="padding:14px 16px;"><div style="font-size:11px;color:#9a8fb5;font-weight:700;text-transform:uppercase;">${l}</div><div class="vf-mono" style="font-size:21px;font-weight:800;color:${c};margin-top:4px;">${v}</div></div>`;
-  const el=document.getElementById('jkpi'); if(el) el.outerHTML=`<div id="jkpi" style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;">${kpi('CA TTC',eur(M.ca),'#ece7f7')}${kpi('CA HT',eur(M.caHT),'#ece7f7')}${kpi('Marge op.',eur(M.marge),M.marge<0?red:green)}${kpi('Taux marge',M.caHT?pctv(M.marge/M.caHT):'—',M.marge<0?red:green)}${kpi('ROAS',M.ads?(M.ca/M.ads).toFixed(2).replace('.',',')+'x':'—',accent)}${kpi('Bénéf. net',eur(benef),benef<0?red:green)}</div>`;
+  const kpi=(l,v,c)=>`<div class="vf-card" style="padding:14px 16px;"><div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;">${l}</div><div class="vf-mono" style="font-size:21px;font-weight:800;color:${c};margin-top:4px;">${v}</div></div>`;
+  const el=document.getElementById('jkpi'); if(el) el.outerHTML=`<div id="jkpi" style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;">${kpi('CA TTC',eur(M.ca),'var(--txt)')}${kpi('CA HT',eur(M.caHT),'var(--txt)')}${kpi('Marge op.',eur(M.marge),M.marge<0?red:green)}${kpi('Taux marge',M.caHT?pctv(M.marge/M.caHT):'—',M.marge<0?red:green)}${kpi('ROAS',M.ads?(M.ca/M.ads).toFixed(2).replace('.',',')+'x':'—',accent)}${kpi('Bénéf. net',eur(benef),benef<0?red:green)}</div>`;
 }
 function bindJournal(){
   document.querySelectorAll('table.led input').forEach(inp=>{
@@ -327,14 +374,14 @@ async function importShopify(){
 function recapView(){
   const A=monthAgg(STATE.month); const impot=A.caHT*(STATE.settings.impotPct/100);
   const posts=[{n:'Coût produit',v:A.cout,c:accent},{n:'Frais de paiement',v:A.frais,c:teal},{n:'Dépenses ads',v:A.ads,c:amber}]
-    .concat(STATE.fixed.filter(f=>num(f.amount)>0).map(f=>({n:f.name,v:num(f.amount),c:'#f472b6'})));
+    .concat(effectiveFixed(STATE.month).filter(f=>num(f.amount)>0).map(f=>({n:f.name,v:num(f.amount),c:'#f472b6'})));
   posts.push({n:'Impôt / cotisations',v:impot,c:'#60a5fa'});
   const totalCost=posts.reduce((a,p)=>a+p.v,0);
   const benef=A.ca - totalCost; // CA TTC - tous coûts (dont impôt)
-  const rowsH=posts.map(p=>`<tr><td style="text-align:left;"><span style="display:inline-flex;align-items:center;gap:8px;"><span style="width:9px;height:9px;border-radius:3px;background:${p.c};"></span>${p.n}</span></td><td class="vf-mono" style="text-align:right;">${eur2(p.v)}</td><td class="vf-mono" style="text-align:right;color:${amber};">${totalCost?pctv(p.v/totalCost):'—'}</td><td class="vf-mono" style="text-align:right;color:#8b7fa8;">${A.ca?pctv(p.v/A.ca):'—'}</td></tr>`).join('');
+  const rowsH=posts.map(p=>`<tr><td style="text-align:left;"><span style="display:inline-flex;align-items:center;gap:8px;"><span style="width:9px;height:9px;border-radius:3px;background:${p.c};"></span>${p.n}</span></td><td class="vf-mono" style="text-align:right;">${eur2(p.v)}</td><td class="vf-mono" style="text-align:right;color:${amber};">${totalCost?pctv(p.v/totalCost):'—'}</td><td class="vf-mono" style="text-align:right;color:var(--muted2);">${A.ca?pctv(p.v/A.ca):'—'}</td></tr>`).join('');
   return `<div class="vf-view">
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
-      ${miniCard('CA TTC',eur(A.ca),'#ece7f7')}${miniCard('Coûts totaux',eur(totalCost),red)}${miniCard('Bénéfice net',eur(benef),benef<0?red:green)}${miniCard('Marge nette',A.ca?pctv(benef/A.ca):'—',benef<0?red:green)}
+      ${miniCard('CA TTC',eur(A.ca),'var(--txt)')}${miniCard('Coûts totaux',eur(totalCost),red)}${miniCard('Bénéfice net',eur(benef),benef<0?red:green)}${miniCard('Marge nette',A.ca?pctv(benef/A.ca):'—',benef<0?red:green)}
     </div>
     <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:18px;align-items:start;margin-top:4px;">
       <div class="vf-card">
@@ -352,32 +399,43 @@ function recapView(){
 function drawRecap(){
   const c=document.getElementById('recapChart'); if(!c||!window.Chart)return;
   const A=monthAgg(STATE.month); const impot=A.caHT*(STATE.settings.impotPct/100);
-  const posts=[['Coût produit',A.cout,accent],['Frais paiement',A.frais,teal],['Ads',A.ads,amber]].concat(STATE.fixed.filter(f=>num(f.amount)>0).map(f=>[f.name,num(f.amount),'#f472b6'])); posts.push(['Impôt',impot,'#60a5fa']);
+  const posts=[['Coût produit',A.cout,accent],['Frais paiement',A.frais,teal],['Ads',A.ads,amber]].concat(effectiveFixed(STATE.month).filter(f=>num(f.amount)>0).map(f=>[f.name,num(f.amount),'#f472b6'])); posts.push(['Impôt',impot,'#60a5fa']);
   const benef=A.ca-posts.reduce((a,p)=>a+p[1],0); if(benef>0)posts.push(['Bénéfice net',benef,green]);
   if(window._rp)window._rp.destroy();
-  window._rp=new Chart(c,{type:'doughnut',data:{labels:posts.map(p=>p[0]),datasets:[{data:posts.map(p=>p[1]),backgroundColor:posts.map(p=>p[2]),borderColor:'rgba(9,6,15,0.6)',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'bottom',labels:{color:'#cfc6e6',font:{size:11},boxWidth:12,padding:8}},tooltip:{callbacks:{label:x=>x.label+': '+eur2(x.parsed)}}}}});
+  window._rp=new Chart(c,{type:'doughnut',data:{labels:posts.map(p=>p[0]),datasets:[{data:posts.map(p=>p[1]),backgroundColor:posts.map(p=>p[2]),borderColor:'rgba(9,6,15,0.6)',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'bottom',labels:{color:THX.txt2,font:{size:11},boxWidth:12,padding:8}},tooltip:{callbacks:{label:x=>x.label+': '+eur2(x.parsed)}}}}});
 }
-function miniCard(l,v,c){ return `<div class="vf-card" style="padding:15px 18px;"><div style="font-size:11px;color:#9a8fb5;font-weight:700;text-transform:uppercase;">${l}</div><div class="vf-mono" style="font-size:22px;font-weight:800;color:${c};margin-top:5px;">${v}</div></div>`; }
+function miniCard(l,v,c){ return `<div class="vf-card" style="padding:15px 18px;"><div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;">${l}</div><div class="vf-mono" style="font-size:22px;font-weight:800;color:${c};margin-top:5px;">${v}</div></div>`; }
 
-// ---------- FIXES ----------
+// ---------- FIXES (par mois) ----------
+function materializeFixed(){ const m=STATE.month; if(!STATE.fixedByMonth[m]) STATE.fixedByMonth[m]=effectiveFixed(m).map(x=>({name:x.name,amount:x.amount})); return STATE.fixedByMonth[m]; }
 function fixesView(){
-  const rows=STATE.fixed.map((f,i)=>`<div style="display:grid;grid-template-columns:1fr 160px 40px;gap:10px;align-items:center;">
+  const [yy,mm]=STATE.month.split('-').map(Number);
+  const list=effectiveFixed(STATE.month);
+  const own=!!STATE.fixedByMonth[STATE.month];
+  const rows=list.map((f,i)=>`<div style="display:grid;grid-template-columns:1fr 160px 40px;gap:10px;align-items:center;">
      <input class="vf-inp" data-fx="${i}" data-fk="name" value="${(f.name||'').replace(/"/g,'&quot;')}" placeholder="Nom du poste" style="text-align:left;font-family:inherit;">
-     <div style="position:relative;"><input class="vf-inp" data-fx="${i}" data-fk="amount" type="number" step="any" value="${f.amount!=null&&f.amount!==0?f.amount:''}" placeholder="0"><span style="position:absolute;right:11px;top:9px;font-size:12px;color:#6f6588;" class="vf-mono">€</span></div>
+     <div style="position:relative;"><input class="vf-inp" data-fx="${i}" data-fk="amount" type="number" step="any" value="${f.amount!=null&&f.amount!==0?f.amount:''}" placeholder="0"><span style="position:absolute;right:11px;top:9px;font-size:12px;color:var(--dim);" class="vf-mono">€</span></div>
      <button data-del="${i}" style="border:none;background:rgba(251,113,133,0.12);color:${red};border-radius:9px;height:36px;cursor:pointer;font-size:16px;">×</button>
    </div>`).join('');
-  const tot=fixedTotal();
-  return `<div class="vf-view"><div class="vf-card" style="max-width:640px;">
-    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px;"><div style="font-size:15px;font-weight:700;">Charges fixes mensuelles</div><div class="vf-mono" style="color:${accent};font-weight:700;">Total ${eur2(tot)}</div></div>
+  return `<div class="vf-view"><div class="vf-card" style="max-width:660px;">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px;"><div style="font-size:15px;font-weight:700;">Charges fixes — ${MONTHS[mm-1]} ${yy}</div><div class="vf-mono" style="color:${accent};font-weight:700;">Total ${eur2(fixedTotal(STATE.month))}</div></div>
+    <div style="font-size:11.5px;color:var(--muted2);margin-bottom:14px;">Les coûts fixes peuvent varier chaque mois. Utilise les flèches ‹ › (en haut) pour changer de mois. ${own?'':'<span style="color:var(--dim);">(Ce mois reprend le modèle du mois précédent tant que tu ne le modifies pas.)</span>'}</div>
     <div style="display:flex;flex-direction:column;gap:10px;">${rows}</div>
-    <button id="addFix" style="margin-top:14px;padding:9px 16px;border-radius:10px;border:1px dashed rgba(167,139,250,0.4);background:transparent;color:#d8b4fe;font-weight:600;font-size:13px;cursor:pointer;">+ Ajouter un poste</button>
-    <div style="margin-top:16px;font-size:11.5px;color:#8b7fa8;line-height:1.6;">Ces charges (remboursements, apps, abonnements, logiciels, salaires…) sont déduites dans le <a href="#" data-nav="recap">Récap</a> et la <a href="#" data-nav="synthese">Synthèse</a> pour calculer ton bénéfice net réel.</div>
+    <button id="addFix" style="margin-top:14px;padding:9px 16px;border-radius:10px;border:1px dashed rgba(167,139,250,0.4);background:transparent;color:var(--acc-tx);font-weight:600;font-size:13px;cursor:pointer;">+ Ajouter un poste</button>
+    <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;">
+      <button id="copyAll" style="padding:8px 14px;border-radius:10px;border:1px solid rgba(167,139,250,0.25);background:transparent;color:var(--txt2);font-weight:600;font-size:12.5px;cursor:pointer;">Appliquer à tous les mois de ${yy}</button>
+      <button id="copyPrev" style="padding:8px 14px;border-radius:10px;border:1px solid rgba(167,139,250,0.25);background:transparent;color:var(--txt2);font-weight:600;font-size:12.5px;cursor:pointer;">Reprendre le mois précédent</button>
+    </div>
+    <div id="fix_msg" style="margin-top:10px;font-size:11.5px;color:var(--muted2);"></div>
+    <div style="margin-top:12px;font-size:11.5px;color:var(--muted2);line-height:1.6;">Déduites dans le <a href="#" data-nav="recap">Récap</a>, la <a href="#" data-nav="synthese">Synthèse</a> et le <a href="#" data-nav="dashboard">Résultat annuel</a> pour le bénéfice net.</div>
   </div></div>`;
 }
 function bindFixes(){
-  document.querySelectorAll('[data-fx]').forEach(inp=>inp.addEventListener('input',()=>{const i=+inp.dataset.fx,k=inp.dataset.fk;STATE.fixed[i][k]=k==='amount'?(parseFloat(inp.value)||0):inp.value;save('vfx3_fixed',STATE.fixed);}));
-  document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{STATE.fixed.splice(+b.dataset.del,1);save('vfx3_fixed',STATE.fixed);renderView();});
-  const add=document.getElementById('addFix'); if(add)add.onclick=()=>{STATE.fixed.push({name:'',amount:0});save('vfx3_fixed',STATE.fixed);renderView();};
+  document.querySelectorAll('[data-fx]').forEach(inp=>inp.addEventListener('input',()=>{const l=materializeFixed();const i=+inp.dataset.fx,k=inp.dataset.fk;l[i][k]=k==='amount'?(parseFloat(inp.value)||0):inp.value;save('vfx3_fixedm',STATE.fixedByMonth);}));
+  document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{const l=materializeFixed();l.splice(+b.dataset.del,1);save('vfx3_fixedm',STATE.fixedByMonth);renderView();});
+  const add=document.getElementById('addFix'); if(add)add.onclick=()=>{const l=materializeFixed();l.push({name:'',amount:0});save('vfx3_fixedm',STATE.fixedByMonth);renderView();};
+  const cAll=document.getElementById('copyAll'); if(cAll)cAll.onclick=()=>{ const src=effectiveFixed(STATE.month); const y=STATE.month.split('-')[0]; for(let m=1;m<=12;m++){ STATE.fixedByMonth[y+'-'+String(m).padStart(2,'0')]=src.map(x=>({name:x.name,amount:x.amount})); } save('vfx3_fixedm',STATE.fixedByMonth); const el=document.getElementById('fix_msg'); if(el){el.textContent='Appliqué aux 12 mois de '+y+' ✓';el.style.color=green;} };
+  const cPrev=document.getElementById('copyPrev'); if(cPrev)cPrev.onclick=()=>{ const [y,mo]=STATE.month.split('-').map(Number); const d=new Date(y,mo-2,1); const pk=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); const src=effectiveFixed(pk); STATE.fixedByMonth[STATE.month]=src.map(x=>({name:x.name,amount:x.amount})); save('vfx3_fixedm',STATE.fixedByMonth); renderView(); };
 }
 
 // ---------- SYNTHESE ----------
@@ -385,7 +443,7 @@ function syntheseView(){
   const A=monthAgg(STATE.month); const impot=A.caHT*(STATE.settings.impotPct/100); const benef=A.marge-fixedTotal()-impot;
   return `<div class="vf-view">
     <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;">
-      ${miniCard('CA TTC',eur(A.ca),'#ece7f7')}${miniCard('CA HT',eur(A.caHT),'#ece7f7')}${miniCard('Commandes',A.cmd||'—','#ece7f7')}${miniCard('Marge op.',eur(A.marge),A.marge<0?red:green)}${miniCard('Taux marge',A.caHT?pctv(A.marge/A.caHT):'—',A.marge<0?red:green)}${miniCard('Bénéf. net',eur(benef),benef<0?red:green)}
+      ${miniCard('CA TTC',eur(A.ca),'var(--txt)')}${miniCard('CA HT',eur(A.caHT),'var(--txt)')}${miniCard('Commandes',A.cmd||'—','var(--txt)')}${miniCard('Marge op.',eur(A.marge),A.marge<0?red:green)}${miniCard('Taux marge',A.caHT?pctv(A.marge/A.caHT):'—',A.marge<0?red:green)}${miniCard('Bénéf. net',eur(benef),benef<0?red:green)}
     </div>
     <div class="vf-card"><div style="font-size:15px;font-weight:700;margin-bottom:8px;">CA & marge — jour par jour</div><div style="height:270px;position:relative;"><canvas id="synChart"></canvas></div></div>
   </div>`;
@@ -396,18 +454,18 @@ function drawSyn(){
   const labels=[],ca=[],marge=[];
   for(let d=1;d<=dim;d++){ const e=STATE.ledger[STATE.month+'-'+String(d).padStart(2,'0')]; const r=computeDay(e||{}); labels.push(String(d)); ca.push(r.ca); marge.push(r.marge); }
   if(window._sy)window._sy.destroy();
-  window._sy=new Chart(c,{data:{labels,datasets:[{type:'bar',label:'CA TTC',data:ca,backgroundColor:'rgba(183,148,255,0.7)',borderRadius:4},{type:'line',label:'Marge',data:marge,borderColor:green,borderWidth:2,pointRadius:0,tension:.3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#cfc6e6',boxWidth:12}},tooltip:{callbacks:{label:x=>x.dataset.label+': '+eur2(x.parsed.y)}}},scales:{x:{grid:{display:false},ticks:{color:'#6f6588',font:{size:9}}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#6f6588',font:{size:10},callback:v=>'€'+new Intl.NumberFormat('fr-FR',{notation:'compact'}).format(v)}}}}});
+  window._sy=new Chart(c,{data:{labels,datasets:[{type:'bar',label:'CA TTC',data:ca,backgroundColor:'rgba(183,148,255,0.7)',borderRadius:4},{type:'line',label:'Marge',data:marge,borderColor:green,borderWidth:2,pointRadius:0,tension:.3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:THX.txt2,boxWidth:12}},tooltip:{callbacks:{label:x=>x.dataset.label+': '+eur2(x.parsed.y)}}},scales:{x:{grid:{display:false},ticks:{color:THX.tick,font:{size:9}}},y:{grid:{color:THX.grid},ticks:{color:THX.tick,font:{size:10},callback:v=>'€'+new Intl.NumberFormat('fr-FR',{notation:'compact'}).format(v)}}}}});
 }
 
 // ---------- PARAMS ----------
 function paramsView(){
   const s=STATE.settings;
-  const fld=(k,l,ph,suf)=>`<div style="display:flex;flex-direction:column;gap:5px;"><label style="font-size:11.5px;font-weight:600;color:#9a8fb5;">${l}</label><div style="position:relative;"><input class="vf-inp" data-set="${k}" type="number" step="any" value="${s[k]}" placeholder="${ph}"><span style="position:absolute;right:11px;top:9px;font-size:12px;color:#6f6588;" class="vf-mono">${suf}</span></div></div>`;
+  const fld=(k,l,ph,suf)=>`<div style="display:flex;flex-direction:column;gap:5px;"><label style="font-size:11.5px;font-weight:600;color:var(--muted);">${l}</label><div style="position:relative;"><input class="vf-inp" data-set="${k}" type="number" step="any" value="${s[k]}" placeholder="${ph}"><span style="position:absolute;right:11px;top:9px;font-size:12px;color:var(--dim);" class="vf-mono">${suf}</span></div></div>`;
   return `<div class="vf-view"><div class="vf-card" style="max-width:560px;">
     <div style="font-size:15px;font-weight:700;margin-bottom:14px;">Paramètres de calcul</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">${fld('tva','TVA','20','%')}${fld('fraisPct','Frais de paiement','3.5','%')}${fld('impotPct','Impôt / cotisations (sur CA HT)','15','%')}${fld('roasBE','ROAS break-even','1.65','x')}</div>
     <button id="saveParams" style="margin-top:16px;padding:9px 18px;border-radius:10px;border:none;background:linear-gradient(145deg,${accent},${accent2});color:#0a0710;font-weight:700;font-size:13px;cursor:pointer;">Enregistrer</button>
-    <div style="margin-top:14px;font-size:11.5px;color:#8b7fa8;line-height:1.6;">CA HT = CA TTC ÷ (1 + TVA). Frais de paiement = CA TTC × taux. Marge = CA HT − coût produit − frais − ads. ROAS = CA TTC ÷ ads.</div>
+    <div style="margin-top:14px;font-size:11.5px;color:var(--muted2);line-height:1.6;">CA HT = CA TTC ÷ (1 + TVA). Frais de paiement = CA TTC × taux. Marge = CA HT − coût produit − frais − ads. ROAS = CA TTC ÷ ads.</div>
   </div></div>`;
 }
 function bindParams(){ const b=document.getElementById('saveParams'); if(!b)return; b.onclick=()=>{document.querySelectorAll('[data-set]').forEach(i=>STATE.settings[i.dataset.set]=parseFloat(i.value)||0);save('vfx3_settings',STATE.settings);go('journal');}; }
@@ -419,12 +477,12 @@ function connexionView(){
   const box=mode==='cowork'?badge('Connecté via Cowork',green):mode==='proxy'?badge('Connecté via proxy',green):badge('Non connecté — saisie manuelle',amber);
   return `<div class="vf-view"><div class="vf-card" style="max-width:720px;">
     <div style="font-size:16px;font-weight:800;margin-bottom:4px;">Connexion Shopify (facultatif)</div>
-    <div style="font-size:12.5px;color:#8b7fa8;margin-bottom:16px;">Le cockpit fonctionne 100% en saisie manuelle. Shopify sert juste à <b>pré-remplir le CA et les commandes</b> du mois (bouton « Importer CA Shopify »).</div>
-    <div style="padding:14px 16px;border-radius:14px;background:rgba(255,255,255,0.03);border:1px solid rgba(167,139,250,0.14);margin-bottom:16px;">${box}</div>
-    ${mode==='cowork'?`<div style="font-size:13px;color:#cfc6e6;line-height:1.7;">Dans Claude/Cowork, l'import est déjà dispo. Clique « Importer CA Shopify » dans la Saisie journalière.</div>`:`
-    <div style="font-size:11.5px;font-weight:700;color:#7a6f95;text-transform:uppercase;margin-bottom:10px;">Hors Cowork — via backend</div>
-    <div style="display:flex;flex-direction:column;gap:5px;"><label style="font-size:12px;font-weight:600;color:#9a8fb5;">URL du proxy backend</label><input class="vf-inp" id="cx_proxy" placeholder="https://ton-projet.vercel.app/api/shopify" value="${getProxy()}"></div>
-    <div style="display:flex;gap:10px;margin-top:14px;align-items:center;"><button id="cx_save" style="padding:9px 18px;border-radius:10px;border:none;background:linear-gradient(145deg,${accent},${accent2});color:#0a0710;font-weight:700;font-size:13px;cursor:pointer;">Connecter</button><span id="cx_msg" style="font-size:12px;color:#8b7fa8;"></span></div>
+    <div style="font-size:12.5px;color:var(--muted2);margin-bottom:16px;">Le cockpit fonctionne 100% en saisie manuelle. Shopify sert juste à <b>pré-remplir le CA et les commandes</b> du mois (bouton « Importer CA Shopify »).</div>
+    <div style="padding:14px 16px;border-radius:14px;background:var(--fill2);border:1px solid rgba(167,139,250,0.14);margin-bottom:16px;">${box}</div>
+    ${mode==='cowork'?`<div style="font-size:13px;color:var(--txt2);line-height:1.7;">Dans Claude/Cowork, l'import est déjà dispo. Clique « Importer CA Shopify » dans la Saisie journalière.</div>`:`
+    <div style="font-size:11.5px;font-weight:700;color:var(--dim2);text-transform:uppercase;margin-bottom:10px;">Hors Cowork — via backend</div>
+    <div style="display:flex;flex-direction:column;gap:5px;"><label style="font-size:12px;font-weight:600;color:var(--muted);">URL du proxy backend</label><input class="vf-inp" id="cx_proxy" placeholder="https://ton-projet.vercel.app/api/shopify" value="${getProxy()}"></div>
+    <div style="display:flex;gap:10px;margin-top:14px;align-items:center;"><button id="cx_save" style="padding:9px 18px;border-radius:10px;border:none;background:linear-gradient(145deg,${accent},${accent2});color:#0a0710;font-weight:700;font-size:13px;cursor:pointer;">Connecter</button><span id="cx_msg" style="font-size:12px;color:var(--muted2);"></span></div>
     <div style="margin-top:16px;padding:12px 14px;border-radius:12px;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.25);font-size:12px;color:#fbe08a;line-height:1.6;">⚠️ Ne colle jamais ton token Shopify ici. Il reste côté serveur (proxy). Voir le guide fourni <span class="vf-mono">CONNEXION-Shopify-guide.md</span>.</div>`}
   </div></div>`;
 }
@@ -436,7 +494,7 @@ function annualData(){
   const T={ca:0,caHT:0,cout:0,frais:0,cmd:0,ads:0,marge:0,benef:0,obj:0,impot:0,fixed:0};
   for(let m=0;m<12;m++){
     const key=y+'-'+String(m+1).padStart(2,'0'); const A=monthAgg(key);
-    const active=A.ca>0; const impot=A.caHT*(STATE.settings.impotPct/100); const fixed=active?fixedTotal():0;
+    const active=A.ca>0; const impot=A.caHT*(STATE.settings.impotPct/100); const fixed=active?fixedTotal(key):0;
     const benef=A.marge-fixed-impot; const obj=num(STATE.objectifs[m]);
     const r={m,ca:A.ca,caHT:A.caHT,cout:A.cout,frais:A.frais,cmd:A.cmd,ads:A.ads,marge:A.marge,impot,fixed,benef,obj,att:obj?A.ca/obj:0,roas:A.ads?A.ca/A.ads:0,txm:A.caHT?A.marge/A.caHT:0};
     rows.push(r); T.ca+=r.ca;T.caHT+=r.caHT;T.cout+=r.cout;T.frais+=r.frais;T.cmd+=r.cmd;T.ads+=r.ads;T.marge+=r.marge;T.benef+=r.benef;T.obj+=r.obj;T.impot+=impot;T.fixed+=fixed;
@@ -450,10 +508,10 @@ function dashboardView(){
   const txm=T.caHT?T.marge/T.caHT:0, roas=T.ads?T.ca/T.ads:0, att=T.obj?T.ca/T.obj:0;
   return `<div class="vf-view">
     <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px;">
-      ${miniCard('CA TTC '+y,eur(T.ca),'#ece7f7')}${miniCard('CA HT',eur(T.caHT),'#ece7f7')}${miniCard('Marge op.',eur(T.marge),T.marge<0?red:green)}${miniCard('Taux marge',pctv(txm),T.marge<0?red:green)}${miniCard('ROAS',T.ads?roas.toFixed(2).replace('.',',')+'x':'—',accent)}${miniCard('Bénéf. net',eur(T.benef),T.benef<0?red:green)}
+      ${miniCard('CA TTC '+y,eur(T.ca),'var(--txt)')}${miniCard('CA HT',eur(T.caHT),'var(--txt)')}${miniCard('Marge op.',eur(T.marge),T.marge<0?red:green)}${miniCard('Taux marge',pctv(txm),T.marge<0?red:green)}${miniCard('ROAS',T.ads?roas.toFixed(2).replace('.',',')+'x':'—',accent)}${miniCard('Bénéf. net',eur(T.benef),T.benef<0?red:green)}
     </div>
     <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:18px;align-items:start;">
-      <div class="vf-card"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;"><div style="font-size:15px;font-weight:700;">CA réel vs objectif · ${y}</div><div style="font-size:12px;color:#8b7fa8;">Atteinte annuelle <span class="vf-mono" style="color:${att>=1?green:amber};">${T.obj?pctv(att):'—'}</span></div></div><div style="height:250px;position:relative;"><canvas id="dashChart"></canvas></div></div>
+      <div class="vf-card"><div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;"><div style="font-size:15px;font-weight:700;">CA réel vs objectif · ${y}</div><div style="font-size:12px;color:var(--muted2);">Atteinte annuelle <span class="vf-mono" style="color:${att>=1?green:amber};">${T.obj?pctv(att):'—'}</span></div></div><div style="height:250px;position:relative;"><canvas id="dashChart"></canvas></div></div>
       <div class="vf-card"><div style="font-size:15px;font-weight:700;margin-bottom:8px;">Bénéfice net mensuel</div><div style="height:250px;position:relative;"><canvas id="dashBenef"></canvas></div></div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start;">
@@ -464,9 +522,9 @@ function dashboardView(){
 }
 function pnlMiniCard(){
   const {y,T}=annualData();
-  const line=(l,v,c,strong)=>`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.04);${strong?'border-top:1px solid rgba(167,139,250,0.2);margin-top:2px;':''}"><span style="font-size:12.5px;font-weight:${strong?700:500};color:${strong?c:'#cfc6e6'};">${l}</span><span class="vf-mono" style="font-size:13px;font-weight:${strong?800:600};color:${c};">${eur(v)}</span></div>`;
+  const line=(l,v,c,strong)=>`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--fill3);${strong?'border-top:1px solid rgba(167,139,250,0.2);margin-top:2px;':''}"><span style="font-size:12.5px;font-weight:${strong?700:500};color:${strong?c:'var(--txt2)'};">${l}</span><span class="vf-mono" style="font-size:13px;font-weight:${strong?800:600};color:${c};">${eur(v)}</span></div>`;
   return `<div class="vf-card"><div style="font-size:15px;font-weight:700;margin-bottom:10px;">Compte de résultat ${y} (synthèse)</div>
-    ${line('CA TTC',T.ca,'#ece7f7')}${line('CA HT',T.caHT,'#8b7fa8')}
+    ${line('CA TTC',T.ca,'var(--txt)')}${line('CA HT',T.caHT,'var(--muted2)')}
     ${line('− Coût produit',-T.cout,red)}${line('− Frais de paiement',-T.frais,red)}${line('− Dépenses ads',-T.ads,red)}
     ${line('= Marge opérationnelle',T.marge,T.marge<0?red:green,true)}
     ${line('− Charges fixes',-T.fixed,red)}${line('− Impôt / cotisations',-T.impot,red)}
@@ -476,7 +534,7 @@ function efficiencyCard(){
   const {T}=annualData();
   const mer=T.ads?T.ca/T.ads:0, cpa=T.cmd?T.ads/T.cmd:0, cpc=0;
   const coutCmd=T.cmd?(T.cout+T.frais+T.ads)/T.cmd:0, partPub=T.ca?T.ads/T.ca:0, contrib=T.ca?T.marge/T.ca:0, panier=T.cmd?T.ca/T.cmd:0;
-  const st=(l,v,c,sub)=>`<div style="padding:12px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(167,139,250,0.1);"><div style="font-size:10.5px;color:#9a8fb5;font-weight:700;text-transform:uppercase;">${l}</div><div class="vf-mono" style="font-size:18px;font-weight:800;color:${c};margin-top:3px;">${v}</div>${sub?`<div style="font-size:10px;color:#6f6588;margin-top:2px;">${sub}</div>`:''}</div>`;
+  const st=(l,v,c,sub)=>`<div style="padding:12px;border-radius:12px;background:var(--fill2);border:1px solid rgba(167,139,250,0.1);"><div style="font-size:10.5px;color:var(--muted);font-weight:700;text-transform:uppercase;">${l}</div><div class="vf-mono" style="font-size:18px;font-weight:800;color:${c};margin-top:3px;">${v}</div>${sub?`<div style="font-size:10px;color:var(--dim);margin-top:2px;">${sub}</div>`:''}</div>`;
   return `<div class="vf-card"><div style="font-size:15px;font-weight:700;margin-bottom:10px;">Efficacité & acquisition</div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
       ${st('MER',T.ads?mer.toFixed(2).replace('.',',')+'x':'—',accent,'CA / pub')}
@@ -484,7 +542,7 @@ function efficiencyCard(){
       ${st('Coût / commande',coutCmd?eur2(coutCmd):'—','#f472b6','tous coûts var.')}
       ${st('Part pub du CA',T.ads?pctv(partPub):'—',partPub>0.3?red:amber,'ad ratio')}
       ${st('Marge contrib.',pctv(contrib),contrib<0?red:green,'avant fixes')}
-      ${st('Panier moyen',panier?eur2(panier):'—','#ece7f7','AOV')}
+      ${st('Panier moyen',panier?eur2(panier):'—','var(--txt)','AOV')}
     </div></div>`;
 }
 
@@ -497,26 +555,26 @@ function simulatorCard(){
   const rows=[0,10,20,30,40].map(t=>{
     const be=t===0;
     return `<tr style="${be?'background:rgba(251,191,36,0.08);':''}">
-      <td style="text-align:left;font-weight:${be?800:600};color:${be?amber:'#cfc6e6'};">${be?'Break-even (0%)':t+'% de marge'}</td>
+      <td style="text-align:left;font-weight:${be?800:600};color:${be?amber:'var(--txt2)'};">${be?'Break-even (0%)':t+'% de marge'}</td>
       <td class="vf-mono" id="sim_r_${t}" style="text-align:right;font-weight:800;font-size:15px;color:${be?amber:accent};"></td>
     </tr>`;
   }).join('');
   return `<div class="vf-card">
     <div style="font-size:15px;font-weight:700;margin-bottom:4px;">Simulateur ROAS cible</div>
-    <div style="font-size:11.5px;color:#8b7fa8;margin-bottom:12px;">ROAS minimum à tenir pour chaque niveau de marge (sur CA HT).</div>
+    <div style="font-size:11.5px;color:var(--muted2);margin-bottom:12px;">ROAS minimum à tenir pour chaque niveau de marge (sur CA HT).</div>
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
-      <label style="font-size:12px;color:#9a8fb5;font-weight:600;flex:1;">Coût produit (% du CA)</label>
-      <div style="position:relative;width:110px;"><input class="vf-inp" id="sim_cogs" type="number" step="any" value="${(rate*100).toFixed(1)}" style="text-align:right;"><span style="position:absolute;right:10px;top:9px;font-size:12px;color:#6f6588;" class="vf-mono">%</span></div>
+      <label style="font-size:12px;color:var(--muted);font-weight:600;flex:1;">Coût produit (% du CA)</label>
+      <div style="position:relative;width:110px;"><input class="vf-inp" id="sim_cogs" type="number" step="any" value="${(rate*100).toFixed(1)}" style="text-align:right;"><span style="position:absolute;right:10px;top:9px;font-size:12px;color:var(--dim);" class="vf-mono">%</span></div>
     </div>
     <table style="width:100%;border-collapse:collapse;font-size:13px;">
       <tr><th class="vf-th" style="text-align:left;padding-bottom:6px;">Objectif</th><th class="vf-th" style="text-align:right;">ROAS cible</th></tr>
       ${rows}
     </table>
-    <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;font-size:12px;">
-      <span style="color:#8b7fa8;">ROAS réel ${STATE.month.split('-')[0]}</span>
+    <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line2);display:flex;justify-content:space-between;font-size:12px;">
+      <span style="color:var(--muted2);">ROAS réel ${STATE.month.split('-')[0]}</span>
       <span class="vf-mono" style="color:${cur&&cur>=(simRoas(0,rate)||99)?green:amber};font-weight:700;">${cur?cur.toFixed(2).replace('.',',')+'x':'—'}</span>
     </div>
-    <div style="margin-top:8px;font-size:11px;color:#6f6588;line-height:1.5;">TVA ${STATE.settings.tva}% · frais paiement ${STATE.settings.fraisPct}%. Base : CA HT − coût produit − frais − ads.</div>
+    <div style="margin-top:8px;font-size:11px;color:var(--dim);line-height:1.5;">TVA ${STATE.settings.tva}% · frais paiement ${STATE.settings.fraisPct}%. Base : CA HT − coût produit − frais − ads.</div>
   </div>`;
 }
 function simCurRoas(){ const {T}=annualData(); return T.ads?T.ca/T.ads:0; }
@@ -534,10 +592,10 @@ function drawDash(){
     window._dc=new Chart(c,{data:{labels:MONTHS.map(m=>m.slice(0,3)),datasets:[
       {type:'bar',label:'CA réel',data:rows.map(r=>r.ca),backgroundColor:'rgba(183,148,255,0.75)',borderRadius:5,order:2},
       {type:'line',label:'Objectif',data:rows.map(r=>r.obj),borderColor:green,borderWidth:2,pointRadius:0,tension:.3,order:1}
-    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#cfc6e6',boxWidth:12}},tooltip:{callbacks:{label:x=>x.dataset.label+': '+eur(x.parsed.y)}}},scales:{x:{grid:{display:false},ticks:{color:'#6f6588',font:{size:10}}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#6f6588',font:{size:10},callback:v=>'€'+new Intl.NumberFormat('fr-FR',{notation:'compact'}).format(v)}}}}}); }
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:THX.txt2,boxWidth:12}},tooltip:{callbacks:{label:x=>x.dataset.label+': '+eur(x.parsed.y)}}},scales:{x:{grid:{display:false},ticks:{color:THX.tick,font:{size:10}}},y:{grid:{color:THX.grid},ticks:{color:THX.tick,font:{size:10},callback:v=>'€'+new Intl.NumberFormat('fr-FR',{notation:'compact'}).format(v)}}}}}); }
   const b=document.getElementById('dashBenef');
   if(b&&window.Chart){ if(window._db)window._db.destroy();
-    window._db=new Chart(b,{type:'bar',data:{labels:MONTHS.map(m=>m.slice(0,3)),datasets:[{label:'Bénéfice net',data:rows.map(r=>r.benef),backgroundColor:rows.map(r=>r.benef<0?'rgba(251,113,133,0.7)':'rgba(52,211,153,0.7)'),borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:x=>eur(x.parsed.y)}}},scales:{x:{grid:{display:false},ticks:{color:'#6f6588',font:{size:10}}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#6f6588',font:{size:10},callback:v=>'€'+new Intl.NumberFormat('fr-FR',{notation:'compact'}).format(v)}}}}}); }
+    window._db=new Chart(b,{type:'bar',data:{labels:MONTHS.map(m=>m.slice(0,3)),datasets:[{label:'Bénéfice net',data:rows.map(r=>r.benef),backgroundColor:rows.map(r=>r.benef<0?'rgba(251,113,133,0.7)':'rgba(52,211,153,0.7)'),borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:x=>eur(x.parsed.y)}}},scales:{x:{grid:{display:false},ticks:{color:THX.tick,font:{size:10}}},y:{grid:{color:THX.grid},ticks:{color:THX.tick,font:{size:10},callback:v=>'€'+new Intl.NumberFormat('fr-FR',{notation:'compact'}).format(v)}}}}}); }
 }
 
 // ---------- PRODUITS & VARIANTES ----------
@@ -551,18 +609,18 @@ async function fetchProducts(){
   }catch(e){ STATE.productsErr=e.message||'erreur'; STATE.productsData=DEMO_VARIANTS.slice(); renderView(); }
 }
 function productsView(){
-  if(!STATE.productsData){ return `<div class="vf-view"><div class="vf-card" style="display:flex;align-items:center;justify-content:center;gap:12px;padding:60px;color:#9a8fb5;"><span style="width:16px;height:16px;border:2px solid rgba(167,139,250,0.25);border-top-color:#b794ff;border-radius:50%;display:inline-block;animation:spin .7s linear infinite;"></span> Chargement des ventes par variante…</div></div>`; }
+  if(!STATE.productsData){ return `<div class="vf-view"><div class="vf-card" style="display:flex;align-items:center;justify-content:center;gap:12px;padding:60px;color:var(--muted);"><span style="width:16px;height:16px;border:2px solid rgba(167,139,250,0.25);border-top-color:#b794ff;border-radius:50%;display:inline-block;animation:spin .7s linear infinite;"></span> Chargement des ventes par variante…</div></div>`; }
   const y=STATE.month.split('-')[0];
   const data=STATE.productsData.slice().sort((a,b)=>b.gross-a.gross);
   const totG=data.reduce((a,x)=>a+x.gross,0), totO=data.reduce((a,x)=>a+x.ord,0);
   const top=data.slice(0,10);
   const clr=(v)=>{ const s=(v||'').toLowerCase(); if(s.includes('mixte'))return accent; if(s.includes('volumin'))return amber; if(s.includes('naturel'))return teal; if(s.includes('mystère')||s.includes('mystere'))return '#f472b6'; return '#60a5fa'; };
-  const body=data.map(x=>`<tr><td style="text-align:left;color:#cfc6e6;font-size:12.5px;">${x.p}</td><td style="text-align:left;"><span style="display:inline-flex;align-items:center;gap:7px;font-weight:600;"><span style="width:9px;height:9px;border-radius:3px;background:${clr(x.v)};"></span>${x.v}</span></td><td class="vf-mono" style="text-align:right;font-weight:700;">${eur(x.gross)}</td><td class="vf-mono" style="text-align:right;color:#8b7fa8;">${x.ord}</td><td class="vf-mono" style="text-align:right;color:${amber};">${totG?pctv(x.gross/totG):'—'}</td></tr>`).join('');
+  const body=data.map(x=>`<tr><td style="text-align:left;color:var(--txt2);font-size:12.5px;">${x.p}</td><td style="text-align:left;"><span style="display:inline-flex;align-items:center;gap:7px;font-weight:600;"><span style="width:9px;height:9px;border-radius:3px;background:${clr(x.v)};"></span>${x.v}</span></td><td class="vf-mono" style="text-align:right;font-weight:700;">${eur(x.gross)}</td><td class="vf-mono" style="text-align:right;color:var(--muted2);">${x.ord}</td><td class="vf-mono" style="text-align:right;color:${amber};">${totG?pctv(x.gross/totG):'—'}</td></tr>`).join('');
   const note=STATE.productsErr==='demo'?`<div style="padding:10px 14px;border-radius:12px;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.25);color:#fbe08a;font-size:12px;margin-bottom:4px;">Exemple (non connecté) — connecte Shopify pour tes vraies ventes. <a href="#" data-nav="connexion" style="color:#fbe08a;text-decoration:underline;">Connecter →</a></div>`:'';
   return `<div class="vf-view">
     ${note}
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">
-      ${miniCard('Meilleure variante',data[0]?data[0].v:'—',accent)}${miniCard('CA brut cumulé',eur(totG),'#ece7f7')}${miniCard('Commandes',totO||'—','#ece7f7')}
+      ${miniCard('Meilleure variante',data[0]?data[0].v:'—',accent)}${miniCard('CA brut cumulé',eur(totG),'var(--txt)')}${miniCard('Commandes',totO||'—','var(--txt)')}
     </div>
     <div style="display:grid;grid-template-columns:1fr 1.15fr;gap:18px;align-items:start;">
       <div class="vf-card"><div style="font-size:15px;font-weight:700;margin-bottom:8px;">Top variantes / couleurs</div><div style="height:300px;position:relative;"><canvas id="prodChart"></canvas></div></div>
@@ -577,7 +635,7 @@ function drawProducts(){
   const data=STATE.productsData.slice().sort((a,b)=>b.gross-a.gross).slice(0,10);
   const clr=(v)=>{ const s=(v||'').toLowerCase(); if(s.includes('mixte'))return 'rgba(183,148,255,0.85)'; if(s.includes('volumin'))return 'rgba(251,191,36,0.85)'; if(s.includes('naturel'))return 'rgba(94,234,212,0.85)'; if(s.includes('mystère')||s.includes('mystere'))return 'rgba(244,114,182,0.85)'; return 'rgba(96,165,250,0.8)'; };
   if(window._pd)window._pd.destroy();
-  window._pd=new Chart(c,{type:'bar',data:{labels:data.map(x=>x.v.length>22?x.v.slice(0,22)+'…':x.v),datasets:[{label:'CA brut',data:data.map(x=>x.gross),backgroundColor:data.map(x=>clr(x.v)),borderRadius:4}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:x=>eur(x.parsed.x)}}},scales:{x:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#6f6588',font:{size:10},callback:v=>'€'+new Intl.NumberFormat('fr-FR',{notation:'compact'}).format(v)}},y:{grid:{display:false},ticks:{color:'#cfc6e6',font:{size:11}}}}}});
+  window._pd=new Chart(c,{type:'bar',data:{labels:data.map(x=>x.v.length>22?x.v.slice(0,22)+'…':x.v),datasets:[{label:'CA brut',data:data.map(x=>x.gross),backgroundColor:data.map(x=>clr(x.v)),borderRadius:4}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:x=>eur(x.parsed.x)}}},scales:{x:{grid:{color:THX.grid},ticks:{color:THX.tick,font:{size:10},callback:v=>'€'+new Intl.NumberFormat('fr-FR',{notation:'compact'}).format(v)}},y:{grid:{display:false},ticks:{color:THX.txt2,font:{size:11}}}}}});
 }
 
 // ---------- COMPTE DE RESULTAT (mensuel) ----------
@@ -586,16 +644,16 @@ function resultatView(){
   const [yy,mm]=STATE.month.split('-').map(Number);
   const items=[{l:'CA HT',v:A.caHT,k:'in'},{l:'Coût produit',v:-A.cout,k:'out'},{l:'Frais de paiement',v:-A.frais,k:'out'},{l:'Dépenses ads',v:-A.ads,k:'out'},{l:'Charges fixes',v:-fixed,k:'out'}].filter(r=>r.k==='in'||Math.abs(r.v)>0.001);
   const maxMag=Math.max(A.caHT,1);
-  const bars=items.map(p=>{const w=(Math.abs(p.v)/maxMag*100).toFixed(1)+'%';return `<div style="display:grid;grid-template-columns:160px 1fr 120px;align-items:center;gap:14px;"><span style="font-size:12.5px;font-weight:600;color:${p.k==='in'?'#ece7f7':'#cfc6e6'};">${p.l}</span><div style="height:10px;border-radius:6px;background:rgba(255,255,255,0.05);overflow:hidden;"><div style="height:100%;width:${w};border-radius:6px;background:${p.k==='in'?'linear-gradient(90deg,'+accent+','+accent2+')':'rgba(251,113,133,0.6)'};"></div></div><span class="vf-mono" style="font-size:13px;font-weight:700;text-align:right;color:${p.k==='in'?'#d8b4fe':red};">${eur2(p.v)}</span></div>`;}).join('');
+  const bars=items.map(p=>{const w=(Math.abs(p.v)/maxMag*100).toFixed(1)+'%';return `<div style="display:grid;grid-template-columns:160px 1fr 120px;align-items:center;gap:14px;"><span style="font-size:12.5px;font-weight:600;color:${p.k==='in'?'var(--txt)':'var(--txt2)'};">${p.l}</span><div style="height:10px;border-radius:6px;background:var(--line);overflow:hidden;"><div style="height:100%;width:${w};border-radius:6px;background:${p.k==='in'?'linear-gradient(90deg,'+accent+','+accent2+')':'rgba(251,113,133,0.6)'};"></div></div><span class="vf-mono" style="font-size:13px;font-weight:700;text-align:right;color:${p.k==='in'?'var(--acc-tx)':red};">${eur2(p.v)}</span></div>`;}).join('');
   const resAvant=A.marge-fixed; const benef=resAvant-impot;
-  const line=(l,v,c,bold)=>`<div style="display:grid;grid-template-columns:160px 1fr 120px;align-items:center;gap:14px;padding-top:10px;margin-top:2px;border-top:1px solid rgba(255,255,255,0.07);"><span style="font-size:12.5px;font-weight:${bold?800:700};color:${c};">${l}</span><div></div><span class="vf-mono" style="font-size:13px;font-weight:${bold?800:700};text-align:right;color:${c};">${eur2(v)}</span></div>`;
+  const line=(l,v,c,bold)=>`<div style="display:grid;grid-template-columns:160px 1fr 120px;align-items:center;gap:14px;padding-top:10px;margin-top:2px;border-top:1px solid var(--line3);"><span style="font-size:12.5px;font-weight:${bold?800:700};color:${c};">${l}</span><div></div><span class="vf-mono" style="font-size:13px;font-weight:${bold?800:700};text-align:right;color:${c};">${eur2(v)}</span></div>`;
   return `<div class="vf-view">
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
-      ${miniCard('CA TTC — '+MONTHS[mm-1],eur(A.ca),'#ece7f7')}${miniCard('Marge op.',eur(A.marge),A.marge<0?red:green)}${miniCard('Bénéfice net',eur(benef),benef<0?red:green)}${miniCard('Taux marge nette',A.ca?pctv(benef/A.ca):'—',benef<0?red:green)}
+      ${miniCard('CA TTC — '+MONTHS[mm-1],eur(A.ca),'var(--txt)')}${miniCard('Marge op.',eur(A.marge),A.marge<0?red:green)}${miniCard('Bénéfice net',eur(benef),benef<0?red:green)}${miniCard('Taux marge nette',A.ca?pctv(benef/A.ca):'—',benef<0?red:green)}
     </div>
     <div class="vf-card" style="max-width:760px;">
       <div style="font-size:15px;font-weight:700;margin-bottom:16px;">Compte de résultat — ${MONTHS[mm-1]} ${yy}</div>
-      <div style="display:flex;flex-direction:column;gap:11px;">${bars}${line('Marge opérationnelle',A.marge,A.marge<0?red:green)}${line('Résultat avant impôt',resAvant,resAvant<0?red:'#d8b4fe')}${line('Impôt / cotisations ('+s.impotPct+'%)',-impot,red)}${line('Bénéfice net',benef,benef<0?red:green,true)}</div>
+      <div style="display:flex;flex-direction:column;gap:11px;">${bars}${line('Marge opérationnelle',A.marge,A.marge<0?red:green)}${line('Résultat avant impôt',resAvant,resAvant<0?red:'var(--acc-tx)')}${line('Impôt / cotisations ('+s.impotPct+'%)',-impot,red)}${line('Bénéfice net',benef,benef<0?red:green,true)}</div>
     </div>
   </div>`;
 }
@@ -604,21 +662,21 @@ function resultatView(){
 function annuelView(){
   const {y,rows,T}=annualData();
   const head=`<tr><th style="text-align:left;" class="vf-th">Mois</th><th class="vf-th" style="text-align:right;">Objectif</th><th class="vf-th" style="text-align:right;">CA réel</th><th class="vf-th" style="text-align:right;">Atteinte</th><th class="vf-th" style="text-align:right;">Marge</th><th class="vf-th" style="text-align:right;">Bénéf. net</th><th class="vf-th" style="text-align:right;">ROAS</th></tr>`;
-  const body=rows.map(r=>`<tr><td style="font-weight:600;color:#ece7f7;">${MONTHS[r.m]}</td>
+  const body=rows.map(r=>`<tr><td style="font-weight:600;color:var(--txt);">${MONTHS[r.m]}</td>
     <td style="text-align:right;"><input class="vf-inp" data-obj="${r.m}" type="number" step="any" value="${r.obj||''}" placeholder="0" style="width:96px;text-align:right;padding:5px 8px;font-size:12px;"></td>
     <td class="vf-mono" style="text-align:right;font-weight:700;">${eur(r.ca)}</td>
-    <td class="vf-mono" style="text-align:right;color:${r.att>=1?green:r.att>=0.5?amber:'#8b7fa8'};">${r.obj?pctv(r.att):'—'}</td>
+    <td class="vf-mono" style="text-align:right;color:${r.att>=1?green:r.att>=0.5?amber:'var(--muted2)'};">${r.obj?pctv(r.att):'—'}</td>
     <td class="vf-mono" style="text-align:right;color:${r.marge<0?red:green};">${eur(r.marge)}</td>
     <td class="vf-mono" style="text-align:right;color:${r.benef<0?red:green};">${eur(r.benef)}</td>
-    <td class="vf-mono" style="text-align:right;color:#cfc6e6;">${r.roas?r.roas.toFixed(2).replace('.',','):'—'}</td></tr>`).join('');
+    <td class="vf-mono" style="text-align:right;color:var(--txt2);">${r.roas?r.roas.toFixed(2).replace('.',','):'—'}</td></tr>`).join('');
   const txm=T.caHT?T.marge/T.caHT:0;
-  const tot=`<tr style="border-top:2px solid rgba(167,139,250,0.3);"><td style="font-weight:800;color:${accent};padding-top:8px;">Total ${y}</td><td class="vf-mono" style="text-align:right;font-weight:700;color:#8b7fa8;padding-top:8px;">${eur(T.obj)}</td><td class="vf-mono" style="text-align:right;font-weight:800;padding-top:8px;">${eur(T.ca)}</td><td class="vf-mono" style="text-align:right;color:${T.ca>=T.obj?green:amber};padding-top:8px;">${T.obj?pctv(T.ca/T.obj):'—'}</td><td class="vf-mono" style="text-align:right;font-weight:700;color:${T.marge<0?red:green};padding-top:8px;">${eur(T.marge)}</td><td class="vf-mono" style="text-align:right;font-weight:800;color:${T.benef<0?red:green};padding-top:8px;">${eur(T.benef)}</td><td></td></tr>`;
+  const tot=`<tr style="border-top:2px solid rgba(167,139,250,0.3);"><td style="font-weight:800;color:${accent};padding-top:8px;">Total ${y}</td><td class="vf-mono" style="text-align:right;font-weight:700;color:var(--muted2);padding-top:8px;">${eur(T.obj)}</td><td class="vf-mono" style="text-align:right;font-weight:800;padding-top:8px;">${eur(T.ca)}</td><td class="vf-mono" style="text-align:right;color:${T.ca>=T.obj?green:amber};padding-top:8px;">${T.obj?pctv(T.ca/T.obj):'—'}</td><td class="vf-mono" style="text-align:right;font-weight:700;color:${T.marge<0?red:green};padding-top:8px;">${eur(T.marge)}</td><td class="vf-mono" style="text-align:right;font-weight:800;color:${T.benef<0?red:green};padding-top:8px;">${eur(T.benef)}</td><td></td></tr>`;
   return `<div class="vf-view">
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
-      ${miniCard('CA réel '+y,eur(T.ca),'#ece7f7')}${miniCard('Objectif '+y,eur(T.obj),'#8b7fa8')}${miniCard('Marge annuelle',eur(T.marge),T.marge<0?red:green)}${miniCard('Bénéfice net',eur(T.benef),T.benef<0?red:green)}
+      ${miniCard('CA réel '+y,eur(T.ca),'var(--txt)')}${miniCard('Objectif '+y,eur(T.obj),'var(--muted2)')}${miniCard('Marge annuelle',eur(T.marge),T.marge<0?red:green)}${miniCard('Bénéfice net',eur(T.benef),T.benef<0?red:green)}
     </div>
     <div class="vf-card">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px;"><div style="font-size:15px;font-weight:700;">Objectifs vs réel — ${y}</div><div style="font-size:11.5px;color:#8b7fa8;">Objectifs modifiables · marge nette annuelle ${pctv(txm)}</div></div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px;"><div style="font-size:15px;font-weight:700;">Objectifs vs réel — ${y}</div><div style="font-size:11.5px;color:var(--muted2);">Objectifs modifiables · marge nette annuelle ${pctv(txm)}</div></div>
       <div style="height:230px;position:relative;margin-bottom:16px;"><canvas id="annChart"></canvas></div>
       <table style="width:100%;border-collapse:collapse;font-size:12.5px;">${head}${body}${tot}</table>
     </div>
@@ -630,20 +688,20 @@ function drawAnn(){ const c=document.getElementById('annChart'); if(!c||!window.
     {type:'bar',label:'CA réel',data:rows.map(r=>r.ca),backgroundColor:'rgba(183,148,255,0.75)',borderRadius:5,order:2},
     {type:'line',label:'Objectif',data:rows.map(r=>r.obj),borderColor:green,borderWidth:2,pointRadius:0,tension:.3,order:1},
     {type:'line',label:'Bénéfice net',data:rows.map(r=>r.benef),borderColor:amber,borderWidth:2,borderDash:[4,3],pointRadius:0,tension:.3,order:0}
-  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#cfc6e6',boxWidth:12,font:{size:11}}},tooltip:{callbacks:{label:x=>x.dataset.label+': '+eur(x.parsed.y)}}},scales:{x:{grid:{display:false},ticks:{color:'#6f6588',font:{size:10}}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#6f6588',font:{size:10},callback:v=>'€'+new Intl.NumberFormat('fr-FR',{notation:'compact'}).format(v)}}}}}); }
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:THX.txt2,boxWidth:12,font:{size:11}}},tooltip:{callbacks:{label:x=>x.dataset.label+': '+eur(x.parsed.y)}}},scales:{x:{grid:{display:false},ticks:{color:THX.tick,font:{size:10}}},y:{grid:{color:THX.grid},ticks:{color:THX.tick,font:{size:10},callback:v=>'€'+new Intl.NumberFormat('fr-FR',{notation:'compact'}).format(v)}}}}}); }
 function bindAnnuel(){ document.querySelectorAll('[data-obj]').forEach(i=>i.addEventListener('input',()=>{STATE.objectifs[+i.dataset.obj]=parseFloat(i.value)||0;save('vfx3_objectifs',STATE.objectifs);drawAnn();})); }
 
 // ---------- CALCULATEUR DE CAMPAGNE (façon Trendtrack) ----------
 function calculateurView(){
   const c=getCalc();
-  const inp=(k,l,ph,suf,step)=>`<div style="display:flex;flex-direction:column;gap:5px;"><label style="font-size:11.5px;font-weight:600;color:#9a8fb5;">${l}</label><div style="position:relative;"><input class="vf-inp" id="calc_${k}" type="number" step="${step||'any'}" value="${c[k]!=null?c[k]:''}" placeholder="${ph}"><span style="position:absolute;right:11px;top:9px;font-size:12px;color:#6f6588;" class="vf-mono">${suf||''}</span></div></div>`;
-  const res=(id,l,c2,sub)=>`<div style="padding:13px 15px;border-radius:13px;background:rgba(255,255,255,0.03);border:1px solid rgba(167,139,250,0.12);"><div style="font-size:10.5px;color:#9a8fb5;font-weight:700;text-transform:uppercase;">${l}</div><div class="vf-mono" id="${id}" style="font-size:20px;font-weight:800;color:${c2};margin-top:4px;">—</div>${sub?`<div style="font-size:10px;color:#6f6588;margin-top:2px;">${sub}</div>`:''}</div>`;
-  const roasRow=(t)=>`<tr style="${t===0?'background:rgba(251,191,36,0.08);':''}"><td style="text-align:left;font-weight:${t===0?800:600};color:${t===0?amber:'#cfc6e6'};">${t===0?'Break-even (0%)':t+'% de marge nette'}</td><td class="vf-mono" id="res_roas_${t}" style="text-align:right;font-weight:800;color:${t===0?amber:accent};">—</td><td class="vf-mono" id="res_cpa_${t}" style="text-align:right;color:#8b7fa8;">—</td></tr>`;
+  const inp=(k,l,ph,suf,step)=>`<div style="display:flex;flex-direction:column;gap:5px;"><label style="font-size:11.5px;font-weight:600;color:var(--muted);">${l}</label><div style="position:relative;"><input class="vf-inp" id="calc_${k}" type="number" step="${step||'any'}" value="${c[k]!=null?c[k]:''}" placeholder="${ph}"><span style="position:absolute;right:11px;top:9px;font-size:12px;color:var(--dim);" class="vf-mono">${suf||''}</span></div></div>`;
+  const res=(id,l,c2,sub)=>`<div style="padding:13px 15px;border-radius:13px;background:var(--fill2);border:1px solid rgba(167,139,250,0.12);"><div style="font-size:10.5px;color:var(--muted);font-weight:700;text-transform:uppercase;">${l}</div><div class="vf-mono" id="${id}" style="font-size:20px;font-weight:800;color:${c2};margin-top:4px;">—</div>${sub?`<div style="font-size:10px;color:var(--dim);margin-top:2px;">${sub}</div>`:''}</div>`;
+  const roasRow=(t)=>`<tr style="${t===0?'background:rgba(251,191,36,0.08);':''}"><td style="text-align:left;font-weight:${t===0?800:600};color:${t===0?amber:'var(--txt2)'};">${t===0?'Break-even (0%)':t+'% de marge nette'}</td><td class="vf-mono" id="res_roas_${t}" style="text-align:right;font-weight:800;color:${t===0?amber:accent};">—</td><td class="vf-mono" id="res_cpa_${t}" style="text-align:right;color:var(--muted2);">—</td></tr>`;
   return `<div class="vf-view">
     <div style="display:grid;grid-template-columns:1fr 1.25fr;gap:18px;align-items:start;">
       <div class="vf-card">
         <div style="font-size:15px;font-weight:700;margin-bottom:4px;">Hypothèses produit / campagne</div>
-        <div style="font-size:11.5px;color:#8b7fa8;margin-bottom:14px;">Simule la rentabilité avant de lancer. Sauvegardé automatiquement.</div>
+        <div style="font-size:11.5px;color:var(--muted2);margin-bottom:14px;">Simule la rentabilité avant de lancer. Sauvegardé automatiquement.</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
           ${inp('prix','Prix de vente TTC','34.85','€')}
           ${inp('cout','Coût produit unitaire','5.29','€')}
@@ -655,21 +713,21 @@ function calculateurView(){
           ${inp('ventes','Ventes prévues / mois','100','')}
           ${inp('fixe','Coûts fixes mensuels','0','€')}
         </div>
-        <div style="margin-top:12px;font-size:11px;color:#6f6588;line-height:1.5;">« Coûts fixes » est pré-rempli avec le total de ton onglet <a href="#" data-nav="fixes">Coûts fixes</a>. Modifiable ici sans l’écraser.</div>
+        <div style="margin-top:12px;font-size:11px;color:var(--dim);line-height:1.5;">« Coûts fixes » est pré-rempli avec le total de ton onglet <a href="#" data-nav="fixes">Coûts fixes</a>. Modifiable ici sans l’écraser.</div>
       </div>
       <div style="display:flex;flex-direction:column;gap:14px;">
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
           ${res('res_margeBrute','Marge brute / cmd',green,'avant pub')}
           ${res('res_cpaBE','CPA max (break-even)',amber,'à ne pas dépasser')}
           ${res('res_roasBE','ROAS break-even',accent,'CA / pub mini')}
-          ${res('res_profitCmd','Profit / commande','#ece7f7','au CPA prévu')}
-          ${res('res_margeNette','Marge nette / cmd','#ece7f7','% du prix')}
+          ${res('res_profitCmd','Profit / commande','var(--txt)','au CPA prévu')}
+          ${res('res_margeNette','Marge nette / cmd','var(--txt)','% du prix')}
           ${res('res_pointMort','Point mort','#f472b6','ventes / coûts fixes')}
         </div>
         <div class="vf-card">
           <div style="font-size:14px;font-weight:700;margin-bottom:10px;">Projection mensuelle (<span id="calc_ventesLbl">0</span> ventes)</div>
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
-            ${res('res_caProj','CA TTC projeté','#ece7f7')}
+            ${res('res_caProj','CA TTC projeté','var(--txt)')}
             ${res('res_margeProj','Marge avant fixes',green)}
             ${res('res_profitNet','Bénéfice net projeté',green,'après coûts fixes')}
           </div>
@@ -678,7 +736,7 @@ function calculateurView(){
           <div style="font-size:14px;font-weight:700;margin-bottom:8px;">ROAS & CPA cibles par niveau de marge</div>
           <table style="width:100%;border-collapse:collapse;font-size:13px;"><tr><th class="vf-th" style="text-align:left;">Objectif (par commande)</th><th class="vf-th" style="text-align:right;">ROAS cible</th><th class="vf-th" style="text-align:right;">CPA max</th></tr>
           ${[0,10,20,30,40].map(roasRow).join('')}</table>
-          <div style="margin-top:8px;font-size:10.5px;color:#6f6588;">Marges par commande (hors coûts fixes). Le « point mort » ci-dessus couvre les coûts fixes.</div>
+          <div style="margin-top:8px;font-size:10.5px;color:var(--dim);">Marges par commande (hors coûts fixes). Le « point mort » ci-dessus couvre les coûts fixes.</div>
         </div>
       </div>
     </div>
@@ -700,7 +758,7 @@ function recalcCalc(){
   S('res_profitCmd',eur2(profitCmd),profitCmd<0?red:green);
   S('res_margeNette',pctv(margeNette),profitCmd<0?red:green);
   S('res_pointMort',pointMort!=null?pointMort+' ventes':'—','#f472b6');
-  S('res_caProj',eur(caProj),'#ece7f7');
+  S('res_caProj',eur(caProj),'var(--txt)');
   S('res_margeProj',eur(margeProj),margeProj<0?red:green);
   S('res_profitNet',eur(profitNet),profitNet<0?red:green);
   [0,10,20,30,40].forEach(t=>{ const tf=t/100; const cpaT=margeBrute-tf*prix; const roasT=cpaT>0?prix/cpaT:null;
@@ -716,12 +774,12 @@ function bindCalc(){ ['prix','cout','livraison','autres','fraisPct','tva','cpa',
 function acquisitionView(){
   const A=monthAgg(STATE.month); const a=STATE.ads[STATE.month]||{};
   const [yy,mm]=STATE.month.split('-').map(Number);
-  const inp=(k,l,ph)=>`<div style="display:flex;flex-direction:column;gap:5px;"><label style="font-size:11.5px;font-weight:600;color:#9a8fb5;">${l}</label><input class="vf-inp" id="acq_${k}" type="number" step="any" value="${a[k]!=null?a[k]:''}" placeholder="${ph}"></div>`;
-  const kp=(id,l,sub)=>`<div style="padding:13px 15px;border-radius:13px;background:rgba(255,255,255,0.03);border:1px solid rgba(167,139,250,0.12);"><div style="font-size:10.5px;color:#9a8fb5;font-weight:700;text-transform:uppercase;">${l}</div><div class="vf-mono" id="${id}" style="font-size:19px;font-weight:800;color:#ece7f7;margin-top:3px;">—</div>${sub?`<div style="font-size:10px;color:#6f6588;margin-top:2px;">${sub}</div>`:''}</div>`;
+  const inp=(k,l,ph)=>`<div style="display:flex;flex-direction:column;gap:5px;"><label style="font-size:11.5px;font-weight:600;color:var(--muted);">${l}</label><input class="vf-inp" id="acq_${k}" type="number" step="any" value="${a[k]!=null?a[k]:''}" placeholder="${ph}"></div>`;
+  const kp=(id,l,sub)=>`<div style="padding:13px 15px;border-radius:13px;background:var(--fill2);border:1px solid rgba(167,139,250,0.12);"><div style="font-size:10.5px;color:var(--muted);font-weight:700;text-transform:uppercase;">${l}</div><div class="vf-mono" id="${id}" style="font-size:19px;font-weight:800;color:var(--txt);margin-top:3px;">—</div>${sub?`<div style="font-size:10px;color:var(--dim);margin-top:2px;">${sub}</div>`:''}</div>`;
   return `<div class="vf-view">
     <div class="vf-card" style="max-width:640px;">
       <div style="font-size:15px;font-weight:700;margin-bottom:4px;">Saisie ads — ${MONTHS[mm-1]} ${yy}</div>
-      <div style="font-size:11.5px;color:#8b7fa8;margin-bottom:14px;">Dépense pub et commandes viennent de ta saisie journalière. Ajoute impressions et clics (depuis ton gestionnaire Meta/TikTok) pour le funnel complet.</div>
+      <div style="font-size:11.5px;color:var(--muted2);margin-bottom:14px;">Dépense pub et commandes viennent de ta saisie journalière. Ajoute impressions et clics (depuis ton gestionnaire Meta/TikTok) pour le funnel complet.</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">${inp('imp','Impressions','0')}${inp('clics','Clics','0')}</div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">
@@ -744,15 +802,15 @@ function bindAcq(){ ['imp','clics'].forEach(k=>{const el=document.getElementById
 // ---------- CLOUD (sauvegarde & synchro) ----------
 function cloudView(){
   const url=getSyncUrl(), key=getSyncKey(), auto=autoSync();
-  const btn=(id,txt,primary)=>`<button id="${id}" style="padding:9px 16px;border-radius:10px;border:${primary?'none':'1px solid rgba(167,139,250,0.25)'};background:${primary?'linear-gradient(145deg,'+accent+','+accent2+')':'transparent'};color:${primary?'#0a0710':'#cfc6e6'};font-weight:${primary?700:600};font-size:13px;cursor:pointer;">${txt}</button>`;
-  const lab=t=>`<label style="font-size:12px;font-weight:600;color:#9a8fb5;">${t}</label>`;
+  const btn=(id,txt,primary)=>`<button id="${id}" style="padding:9px 16px;border-radius:10px;border:${primary?'none':'1px solid rgba(167,139,250,0.25)'};background:${primary?'linear-gradient(145deg,'+accent+','+accent2+')':'transparent'};color:${primary?'#0a0710':'var(--txt2)'};font-weight:${primary?700:600};font-size:13px;cursor:pointer;">${txt}</button>`;
+  const lab=t=>`<label style="font-size:12px;font-weight:600;color:var(--muted);">${t}</label>`;
   return `<div class="vf-view"><div class="vf-card" style="max-width:740px;">
     <div style="font-size:16px;font-weight:800;margin-bottom:4px;">Sauvegarde & synchro cloud</div>
-    <div style="font-size:12.5px;color:#8b7fa8;margin-bottom:16px;">Sans ça, tes données ne vivent que dans ce navigateur. Ici tu les sauvegardes dans <b>ton Google Sheet</b> (gratuit, multi-appareils) et/ou dans un <b>fichier</b>.</div>
+    <div style="font-size:12.5px;color:var(--muted2);margin-bottom:16px;">Sans ça, tes données ne vivent que dans ce navigateur. Ici tu les sauvegardes dans <b>ton Google Sheet</b> (gratuit, multi-appareils) et/ou dans un <b>fichier</b>.</div>
     <div style="display:flex;flex-direction:column;gap:12px;">
       <div style="display:flex;flex-direction:column;gap:5px;">${lab('URL du script Google (Web App)')}<input class="vf-inp" id="cloud_url" placeholder="https://script.google.com/macros/s/.../exec" value="${url}" style="font-size:12px;"></div>
       <div style="display:flex;flex-direction:column;gap:5px;">${lab('Clé de synchro (optionnelle mais conseillée)')}<input class="vf-inp" id="cloud_key" placeholder="ton code secret" value="${key}"></div>
-      <label style="display:flex;align-items:center;gap:9px;font-size:12.5px;color:#cfc6e6;cursor:pointer;user-select:none;"><input type="checkbox" id="cloud_auto" ${auto?'checked':''} style="width:16px;height:16px;accent-color:#7c3aed;"> Synchro automatique (sauvegarde 2 s après chaque modif)</label>
+      <label style="display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--txt2);cursor:pointer;user-select:none;"><input type="checkbox" id="cloud_auto" ${auto?'checked':''} style="width:16px;height:16px;accent-color:#7c3aed;"> Synchro automatique (sauvegarde 2 s après chaque modif)</label>
     </div>
     <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;">
       ${btn('cloud_save','☁ Sauvegarder maintenant',true)}
@@ -761,13 +819,13 @@ function cloudView(){
       ${btn('cloud_import','📂 Importer (fichier)')}
       <input type="file" id="cloud_file" accept="application/json,.json" style="display:none;">
     </div>
-    <div id="cloud_msg" style="margin-top:14px;font-size:12.5px;color:#8b7fa8;min-height:16px;"></div>
-    <div id="cloud_status" style="margin-top:2px;font-size:11.5px;color:#6f6588;"></div>
-    <div style="margin-top:16px;padding:12px 14px;border-radius:12px;background:rgba(167,139,250,0.08);border:1px solid rgba(167,139,250,0.2);font-size:12px;color:#cfc6e6;line-height:1.7;">
+    <div id="cloud_msg" style="margin-top:14px;font-size:12.5px;color:var(--muted2);min-height:16px;"></div>
+    <div id="cloud_status" style="margin-top:2px;font-size:11.5px;color:var(--dim);"></div>
+    <div style="margin-top:16px;padding:12px 14px;border-radius:12px;background:rgba(167,139,250,0.08);border:1px solid rgba(167,139,250,0.2);font-size:12px;color:var(--txt2);line-height:1.7;">
       <b>Mise en place (~10 min, gratuit) — guide fourni <span class="vf-mono">GUIDE-Google-Sheets.md</span> :</b><br>
       1. Crée un Google Sheet vierge. 2. Menu <b>Extensions → Apps Script</b>. 3. Colle le code <span class="vf-mono">Code.gs</span> fourni. 4. <b>Déployer → Nouveau déploiement → Application Web</b> (exécuter en tant que « moi », accès « tout le monde »). 5. Copie l'URL <span class="vf-mono">…/exec</span> et colle-la ci-dessus. 6. Clique « Sauvegarder maintenant ».
     </div>
-    <div style="margin-top:10px;font-size:11px;color:#6f6588;">💡 Sur un nouvel appareil : mets la même URL + clé, puis « Charger depuis le cloud ». Le fichier d'export reste un filet de sécurité si tu ne veux aucun compte.</div>
+    <div style="margin-top:10px;font-size:11px;color:var(--dim);">💡 Sur un nouvel appareil : mets la même URL + clé, puis « Charger depuis le cloud ». Le fichier d'export reste un filet de sécurité si tu ne veux aucun compte.</div>
   </div></div>`;
 }
 function bindCloud(){
@@ -775,7 +833,7 @@ function bindCloud(){
   const persist=()=>{ save('vfx3_syncurl',(b('cloud_url').value||'').trim()); save('vfx3_synckey',(b('cloud_key').value||'').trim()); save('vfx3_autosync',!!b('cloud_auto').checked); };
   ['cloud_url','cloud_key'].forEach(id=>{const el=b(id);if(el)el.addEventListener('change',persist);});
   if(b('cloud_auto'))b('cloud_auto').addEventListener('change',persist);
-  if(b('cloud_save'))b('cloud_save').onclick=()=>{ persist(); cloudMsg('Sauvegarde en cours…','#8b7fa8'); syncPush(false).catch(()=>{}); };
+  if(b('cloud_save'))b('cloud_save').onclick=()=>{ persist(); cloudMsg('Sauvegarde en cours…','var(--muted2)'); syncPush(false).catch(()=>{}); };
   if(b('cloud_load'))b('cloud_load').onclick=()=>{ persist(); if(confirm('Charger les données du cloud et remplacer celles de cet appareil ?')) syncPull(); };
   if(b('cloud_export'))b('cloud_export').onclick=exportJSON;
   if(b('cloud_import'))b('cloud_import').onclick=()=>b('cloud_file').click();
@@ -822,7 +880,7 @@ document.getElementById('mPrev').onclick=()=>{ const [y,m]=STATE.month.split('-'
 document.getElementById('mNext').onclick=()=>{ const [y,m]=STATE.month.split('-').map(Number); const d=new Date(y,m,1); STATE.month=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); save('vfx3_month',STATE.month); renderChrome(); renderView(); };
 document.getElementById('importBtn').onclick=importShopify;
 
-renderChrome(); renderView();
+applyTheme(); renderChrome(); renderView();
 </script>
 </body>
 </html>
